@@ -3461,6 +3461,8 @@ do_state_recovery:
 	return -EAGAIN;
 }
 
+static u32 current_cb_ident = 1;
+
 int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		unsigned short port, struct rpc_cred *cred,
 		struct nfs4_setclientid_res *res)
@@ -3469,6 +3471,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 	struct nfs4_setclientid setclientid = {
 		.sc_verifier = &sc_verifier,
 		.sc_prog = program,
+		.sc_cb_ident = current_cb_ident++,
 	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID],
@@ -3513,6 +3516,8 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 			if (++clp->cl_id_uniquifier == 0)
 				break;
 	}
+	if (status == NFS_OK)
+		res->cb_ident = setclientid.sc_cb_ident;
 	return status;
 }
 

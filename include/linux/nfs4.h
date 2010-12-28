@@ -596,7 +596,9 @@ enum pnfs_layouttype {
 	LAYOUT_OSD2_OBJECTS = 2,
 	LAYOUT_BLOCK_VOLUME = 3,
 
-	NFS4_PNFS_PRIVATE_LAYOUT = 0x80000000
+	NFS4_PNFS_PRIVATE_LAYOUT = 0x80000000,
+        /* Cohort Layouts */
+        LAYOUT4_COHORT_REPLICATION = 0x87654001
 };
 
 /* used for both layout return and recall */

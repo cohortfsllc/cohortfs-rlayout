@@ -1066,6 +1066,25 @@ struct nfs41_reclaim_complete_args {
 struct nfs41_reclaim_complete_res {
 	struct nfs4_sequence_res	seq_res;
 };
+
+/* Cohort data structures */
+struct cohort_signed_integrity4 {
+        char data[NFS4_OPAQUE_LIMIT];
+};
+
+struct cohort_replication_layout4 {
+        struct nfs4_deviceid crl_deviceid;
+        struct nfs_fh **crl_fh_list;
+};
+
+struct cohort_replication_layout_ds_addr4 {
+    struct pnfs_devicelist *crlda_multipath_rs_list;
+};
+
+struct cohort_replication_layoutupdate4 {
+        struct cohort_signed_integrity4 **crlou_si_list;
+};
+
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs_page;

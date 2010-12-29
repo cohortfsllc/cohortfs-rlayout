@@ -4436,13 +4436,18 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 
 /*
  * Decode potentially multiple layout types. Currently we only support
- * one layout driver per file system.
+ * one layout driver per file system, but secondary layouts of other classes
+ * may be supported.
  */
-static int decode_first_pnfs_layout_type(struct xdr_stream *xdr,
-					 uint32_t *layouttype)
+static int decode_pnfs_layout_types(struct xdr_stream *xdr,
+                                    struct nfs_fsinfo *fsinfo)
 {
 	uint32_t *p;
-	int num;
+	int ix, num, pnfs_p;
+        __u32 layouttype;
+
+        fsinfo->layouttype = 0;
+        fsinfo->layouttypes = 0;
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
@@ -4450,19 +4455,48 @@ static int decode_first_pnfs_layout_type(struct xdr_stream *xdr,
 	num = be32_to_cpup(p);
 
 	/* pNFS is not supported by the underlying file system */
-	if (num == 0) {
-		*layouttype = 0;
+	if (num == 0)
 		return 0;
-	}
-	if (num > 1)
-		printk(KERN_INFO "%s: Warning: Multiple pNFS layout drivers "
-			"per filesystem not supported\n", __func__);
 
-	/* Decode and set first layout type, move xdr->p past unused types */
-	p = xdr_inline_decode(xdr, num * 4);
-	if (unlikely(!p))
-		goto out_overflow;
-	*layouttype = be32_to_cpup(p);
+        /* Decode all supplied layout types, setting the corresponding bits in
+         * fsinfo->layouttypes.  Assign the first supplied pNFS layout type to 
+         * fsinfo->layouttype. */
+        for (ix = 0; ix < num; ++ix) {
+
+                p = xdr_inline_decode(xdr, 4);
+                if (unlikely(!p))
+                        goto out_overflow;
+
+                layouttype = be32_to_cpup(p);
+
+                pnfs_p = 0;
+                switch (layouttype) {
+                case LAYOUT_NFSV4_1_FILES:
+                        fsinfo->layouttypes |= FSINFO_LAYOUT_NFSV4_1_FILES;
+                        pnfs_p++;
+                        break;
+                case LAYOUT_OSD2_OBJECTS:
+                        fsinfo->layouttypes |= FSINFO_LAYOUT_OSD2_OBJECTS;
+                        pnfs_p++;
+                        break;
+                case LAYOUT_BLOCK_VOLUME:
+                        fsinfo->layouttypes |= FSINFO_LAYOUT_BLOCK_VOLUME;
+                        pnfs_p++;
+                        break;
+                case LAYOUT4_COHORT_REPLICATION:
+                        fsinfo->layouttypes |= FSINFO_LAYOUT_COHORT_REPLICATION;
+                        break;
+                default:
+                        dprintk("%s:  unknown layout type %d\n", __func__,
+                                layouttype);
+                }
+                
+                /* set pNFS layout driver, if valid and not already set */
+                if (! fsinfo->layouttype)
+                        if (pnfs_p)
+                                fsinfo->layouttype = layouttype;
+        }
+
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -4474,7 +4508,7 @@ out_overflow:
  * Note we must ensure that layouttype is set in any non-error case.
  */
 static int decode_attr_pnfstype(struct xdr_stream *xdr, uint32_t *bitmap,
-				uint32_t *layouttype)
+				struct nfs_fsinfo *fsinfo)
 {
 	int status = 0;
 
@@ -4482,10 +4516,12 @@ static int decode_attr_pnfstype(struct xdr_stream *xdr, uint32_t *bitmap,
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_FS_LAYOUT_TYPES - 1U)))
 		return -EIO;
 	if (bitmap[1] & FATTR4_WORD1_FS_LAYOUT_TYPES) {
-		status = decode_first_pnfs_layout_type(xdr, layouttype);
+		status = decode_pnfs_layout_types(xdr, fsinfo);
 		bitmap[1] &= ~FATTR4_WORD1_FS_LAYOUT_TYPES;
-	} else
-		*layouttype = 0;
+	} else {
+		fsinfo->layouttype = 0;
+		fsinfo->layouttypes = 0;
+	}
 	return status;
 }
 
@@ -4539,7 +4575,7 @@ static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 	status = decode_attr_time_delta(xdr, bitmap, &fsinfo->time_delta);
 	if (status != 0)
 		goto xdr_error;
-	status = decode_attr_pnfstype(xdr, bitmap, &fsinfo->layouttype);
+	status = decode_attr_pnfstype(xdr, bitmap, fsinfo);
 	if (status != 0)
 		goto xdr_error;
 	status = decode_attr_layout_blksize(xdr, bitmap, &fsinfo->blksize);

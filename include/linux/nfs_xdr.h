@@ -104,6 +104,12 @@ struct nfs_fattr {
 /*
  * Info on the file system
  */
+
+#define FSINFO_LAYOUT_NFSV4_1_FILES        (1UL << 0)
+#define FSINFO_LAYOUT_OSD2_OBJECTS         (1UL << 1)
+#define FSINFO_LAYOUT_BLOCK_VOLUME         (1UL << 2)
+#define FSINFO_LAYOUT_COHORT_REPLICATION   (1UL << 3)
+
 struct nfs_fsinfo {
 	struct nfs_fattr	*fattr; /* Post-op attributes */
 	__u32			rtmax;	/* max.  read transfer size */
@@ -117,6 +123,7 @@ struct nfs_fsinfo {
 	struct timespec		time_delta; /* server time granularity */
 	__u32			lease_time; /* in seconds */
 	__u32			layouttype; /* supported pnfs layout driver */
+	__u32			layouttypes; /* all supported layouts, bitmap */
 	__u32			blksize; /* preferred pnfs io block size */
 };
 

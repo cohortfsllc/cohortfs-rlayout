@@ -4469,6 +4469,9 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
 
                 layouttype = be32_to_cpup(p);
 
+                dprintk("%s:  decoded layout type %d\n", __func__,
+                        layouttype);
+
                 pnfs_p = 0;
                 switch (layouttype) {
                 case LAYOUT_NFSV4_1_FILES:
@@ -4485,6 +4488,9 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
                         break;
                 case LAYOUT4_COHORT_REPLICATION:
                         fsinfo->layouttypes |= FSINFO_LAYOUT_COHORT_REPLICATION;
+                        dprintk("%s:  server supports "
+                                "LAYOUT4_COHORT_REPLICATION (layout type %d)\n",
+                                __func__, layouttype);
                         break;
                 default:
                         dprintk("%s:  unknown layout type %d\n", __func__,

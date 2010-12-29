@@ -115,6 +115,14 @@ config PNFS_BLOCK
 
 	  If unsure, say N.
 
+config PNFS_COHORT
+	tristate "Build Cohort replication layout client driver (EXPERIMENTAL)"
+	depends on NFS_FS && NFS_V4_1 && PNFS_FILE_LAYOUT
+	help
+	  Say M or y here if you want your pNfs client to support the Cohort replication layout (client-based replication) protocol
+
+	  If unsure, say N.
+
 config ROOT_NFS
 	bool "Root file system on NFS"
 	depends on NFS_FS=y && IP_PNP

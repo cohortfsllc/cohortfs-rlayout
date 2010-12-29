@@ -1074,11 +1074,11 @@ struct cohort_signed_integrity4 {
 
 struct cohort_replication_layout4 {
         struct nfs4_deviceid crl_deviceid;
-        struct nfs_fh **crl_fh_list;
+        struct nfs_fh crl_fh;
 };
 
 struct cohort_replication_layout_ds_addr4 {
-    struct pnfs_devicelist *crlda_multipath_rs_list;
+        struct pnfs_device *crlda_multipath_rs;
 };
 
 struct cohort_replication_layoutupdate4 {

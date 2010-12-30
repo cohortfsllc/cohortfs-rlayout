@@ -4458,6 +4458,9 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
 	if (num == 0)
 		return 0;
 
+        dprintk("%s:  decoding %d layout types\n", __func__,
+                num);
+
         /* Decode all supplied layout types, setting the corresponding bits in
          * fsinfo->layouttypes.  Assign the first supplied pNFS layout type to 
          * fsinfo->layouttype. */
@@ -4468,9 +4471,6 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
                         goto out_overflow;
 
                 layouttype = be32_to_cpup(p);
-
-                dprintk("%s:  decoded layout type %d\n", __func__,
-                        layouttype);
 
                 pnfs_p = 0;
                 switch (layouttype) {
@@ -4489,11 +4489,11 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
                 case LAYOUT4_COHORT_REPLICATION:
                         fsinfo->layouttypes |= FSINFO_LAYOUT_COHORT_REPLICATION;
                         dprintk("%s:  server supports "
-                                "LAYOUT4_COHORT_REPLICATION (layout type %d)\n",
+                                "LAYOUT4_COHORT_REPLICATION (%llu)\n",
                                 __func__, layouttype);
                         break;
                 default:
-                        dprintk("%s:  unknown layout type %d\n", __func__,
+                        dprintk("%s:  unknown layout type %llu\n", __func__,
                                 layouttype);
                 }
                 

@@ -41,7 +41,6 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 
 struct nfs_sb_mountdata {
 	struct nfs_server *server;
-        struct nfs_server *replicas[7]; /* XXX */
 	int mntflags;
 };
 

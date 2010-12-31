@@ -16,6 +16,7 @@ struct nfs4_sequence_args;
 struct nfs4_sequence_res;
 struct nfs_server;
 struct nfs4_minor_version_ops;
+struct nfs_sb_fs_info_rec;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -109,8 +110,12 @@ is_ds_only_client(struct nfs_client *clp)
 }
 
 /*
- * NFS client parameters stored in the superblock.
+ * NFS client parameters stored in the superblock.  Fyi, moving to aggregation
+ * in struct nfs_sb_fs_info.
  */
+#define NFS_SERVER_CH_FLAG_PRIMARY (1U << 0)
+#define NFS_SERVER_CH_FLAG_REPLICA (1U << 1)
+
 struct nfs_server {
 	struct nfs_client *	nfs_client;	/* shared client and NFS4 state */
 	struct list_head	client_link;	/* List of other nfs_server structs
@@ -138,6 +143,12 @@ struct nfs_server {
 	unsigned int		acdirmin;
 	unsigned int		acdirmax;
 	unsigned int		namelen;
+
+/* XXX
+ * Some or all of the following attributes seem to belong to a containing
+ * nfs_sb_fs_info.
+ */
+
 	unsigned int		options;	/* extra options enabled by mount */
 #define NFS_OPTION_FSCACHE	0x00000001	/* - local caching enabled */
 
@@ -146,7 +157,6 @@ struct nfs_server {
 	struct timespec		time_delta;	/* smallest time granularity */
 	unsigned long		mount_time;	/* when this fs was mounted */
 	dev_t			s_dev;		/* superblock dev numbers */
-	struct super_block      *sb;            /* superblock */
 
 #ifdef CONFIG_NFS_FSCACHE
 	struct nfs_fscache_key	*fscache_key;	/* unique key for superblock */
@@ -181,6 +191,31 @@ struct nfs_server {
 	u32			mountd_version;
 	unsigned short		mountd_port;
 	unsigned short		mountd_protocol;
+
+	/* Cohort */
+	__u32 ch_flags;
+	__u32 layouttypes; /* supported layout types bitmap */
+};
+
+/* Aggregates an nfs_server with additional state associated with a specific
+ * superblock (i.e., mount).  It appears that an nfs_server is already assigned
+ * for a specific mount, for example, it aggregates an fsid.  This seems odd.
+ * One of the first apparent mistakes I made in comprehending the superblock
+ * code was to think that an nfs_server could be made to point to "its super
+ * block."  Now that appears to have been technically possible, but only in so
+ * far as we canonize the shortcut.  That is actually at odds with the goal of
+ * tracking replica servers, so we'll attempt to decouple the server and
+ * superblock concepts through nfs_sb_fs_info.
+ */
+
+/* XXX Provisionally fixed */
+#define COHORT_REPLICATION_MAX_REPLICAS 8
+
+struct nfs_sb_fs_info {
+    struct nfs_server *server;
+    struct nfs_server replicas[COHORT_REPLICATION_MAX_REPLICAS];
+    __u32 n_replicas;
+    __u32 r_flags;
 };
 
 /* Server capabilities */

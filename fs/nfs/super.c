@@ -2223,6 +2223,12 @@ static int nfs_set_super(struct super_block *s, void *data)
 	int ret;
 
 	s->s_flags = sb_mntdata->mntflags;
+        /* XXXX FINISH */
+        /* XXX Cohort.  Ok, apparently need to stash not an nfs_server, but
+         * instead an object aggregating an nfs_server, flags, and optional
+         * replicas.  It appears as if we perhaps -should- be keeping an
+         * nfs_fsinfo structure there too, need to cross check use of that
+         * structure after allocation. */
 	s->s_fs_info = server;
 	ret = set_anon_super(s, server);
 	if (ret == 0)
@@ -2720,21 +2726,6 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 			goto error_splat_bdi;
 	}
 
-        /* XXXX cohort */
-        if (server->sb && (server->sb != s)) {
-            dprintk("%s: server super inconsistent (%p %p)!\n", __func__,
-                    server->sb, s);
-        } else {
-            if (server->sb)
-                dprintk("%s: found server super %p %p\n", __func__, server,
-                        server->sb);
-            else {
-                dprintk("%s: set server super %p %p %p\n", __func__, server,
-                        server->sb, s);
-                server->sb = s;
-            }
-        }
-
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_fill_super(s);
@@ -3051,21 +3042,6 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 			goto error_splat_bdi;
 	}
 
-        /* XXXX cohort */
-        if (server->sb && (server->sb != s)) {
-            dprintk("%s: server super inconsistent (%p %p)!\n", __func__,
-                    server->sb, s);
-        } else {
-            if (server->sb)
-                dprintk("%s: found server super %p %p\n", __func__, server,
-                        server->sb);
-            else {
-                dprintk("%s: set server super %p %p %p\n", __func__, server,
-                        server->sb, s);
-                server->sb = s;
-            }
-        }
-
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_clone_super(s, data->sb);
@@ -3091,7 +3067,7 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
         /* Try for a replication layout.  XXX if we don't have one.
          * Yuk, who has fsinfo? */
         if (server->layouttypes & LAYOUT4_COHORT_REPLICATION) {
-            replication_layoutget();
+            //replication_layoutget();
         }
 #endif
 
@@ -3160,21 +3136,6 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		if (error)
 			goto error_splat_bdi;
 	}
-
-        /* XXXX cohort */
-        if (server->sb && (server->sb != s)) {
-            dprintk("%s: server super inconsistent (%p %p)!\n", __func__,
-                    server->sb, s);
-        } else {
-            if (server->sb)
-                dprintk("%s: found server super %p %p\n", __func__, server,
-                        server->sb);
-            else {
-                dprintk("%s: set server super %p %p %p\n", __func__, server,
-                        server->sb, s);
-                server->sb = s;
-            }
-        }
 
 	if (!s->s_root) {
 		/* initial superblock/root creation */

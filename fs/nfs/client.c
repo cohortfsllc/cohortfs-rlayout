@@ -955,12 +955,10 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fh *mntf
 	server->pnfs_blksize = fsinfo->blksize;
 	set_pnfs_layoutdriver(server, mntfh, fsinfo->layouttype);
 	pnfs_set_ds_iosize(server);
-
-        /* COHORT.  hook layout driver(s) */
-        cohort_set_layoutdrivers(server, mntfh, fsinfo);
-
+        /* XXX Further refactoring of nfs_server and nfs_sb_fs_info is
+         * suggested */
+        server->layouttypes = fsinfo->layouttypes;
 	server->wtmult = nfs_block_bits(fsinfo->wtmult, NULL);
-
 	server->dtsize = nfs_block_size(fsinfo->dtpref, NULL);
 	if (server->dtsize > PAGE_CACHE_SIZE * NFS_MAX_READDIR_PAGES)
 		server->dtsize = PAGE_CACHE_SIZE * NFS_MAX_READDIR_PAGES;

@@ -424,7 +424,7 @@ void __exit unregister_nfs_fs(void)
 
 void nfs_sb_active(struct super_block *sb)
 {
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server = NFS_SERVER_SB(sb);
 
 	if (atomic_inc_return(&server->active) == 1)
 		atomic_inc(&sb->s_active);
@@ -432,7 +432,7 @@ void nfs_sb_active(struct super_block *sb)
 
 void nfs_sb_deactive(struct super_block *sb)
 {
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server = NFS_SERVER_SB(sb);
 
 	if (atomic_dec_and_test(&server->active))
 		deactivate_super(sb);
@@ -443,7 +443,7 @@ void nfs_sb_deactive(struct super_block *sb)
  */
 static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct nfs_server *server = NFS_SB(dentry->d_sb);
+	struct nfs_server *server = NFS_SERVER_SB(dentry->d_sb);
 	unsigned char blockbits;
 	unsigned long blockres;
 	struct nfs_fh *fh = NFS_FH(dentry->d_inode);
@@ -714,7 +714,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
  */
 static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 {
-	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
+	struct nfs_server *nfss = NFS_SERVER_SB(mnt->mnt_sb);
 
 	nfs_show_mount_options(m, nfss, 0);
 
@@ -753,7 +753,7 @@ void show_pnfs(struct seq_file *m, struct nfs_server *server) {}
 static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 {
 	int i, cpu;
-	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
+	struct nfs_server *nfss = NFS_SERVER_SB(mnt->mnt_sb);
 	struct rpc_auth *auth = nfss->client->cl_auth;
 	struct nfs_iostats totals = { };
 
@@ -846,7 +846,7 @@ static void nfs_umount_begin(struct super_block *sb)
 	struct nfs_server *server;
 	struct rpc_clnt *rpc;
 
-	server = NFS_SB(sb);
+	server = NFS_SERVER_SB(sb);
 	/* -EIO all pending I/O */
 	rpc = server->client_acl;
 	if (!IS_ERR(rpc))
@@ -2062,7 +2062,7 @@ static int
 nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 {
 	int error;
-	struct nfs_server *nfss = sb->s_fs_info;
+	struct nfs_server *nfss = NFS_SERVER_SB(sb);
 	struct nfs_parsed_mount_data *data;
 	struct nfs_mount_data *options = (struct nfs_mount_data *)raw_data;
 	struct nfs4_mount_data *options4 = (struct nfs4_mount_data *)raw_data;
@@ -2116,7 +2116,7 @@ out:
  */
 static inline void nfs_initialise_sb(struct super_block *sb)
 {
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server = NFS_SERVER_SB(sb);
 
 	sb->s_magic = NFS_SUPER_MAGIC;
 
@@ -2142,7 +2142,7 @@ static inline void nfs_initialise_sb(struct super_block *sb)
 static void nfs_fill_super(struct super_block *sb,
 			   struct nfs_parsed_mount_data *data)
 {
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server = NFS_SERVER_SB(sb);
 
 	sb->s_blocksize_bits = 0;
 	sb->s_blocksize = 0;
@@ -2167,7 +2167,7 @@ static void nfs_fill_super(struct super_block *sb,
 static void nfs_clone_super(struct super_block *sb,
 			    const struct super_block *old_sb)
 {
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server = NFS_SERVER_SB(sb);
 
 	sb->s_blocksize_bits = old_sb->s_blocksize_bits;
 	sb->s_blocksize = old_sb->s_blocksize;
@@ -2187,7 +2187,7 @@ static void nfs_clone_super(struct super_block *sb,
 
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
 {
-	const struct nfs_server *a = s->s_fs_info;
+	const struct nfs_server *a = NFS_SERVER_SB(s);
 	const struct rpc_clnt *clnt_a = a->client;
 	const struct rpc_clnt *clnt_b = b->client;
 
@@ -2219,7 +2219,7 @@ Ebusy:
 static int nfs_set_super(struct super_block *s, void *data)
 {
 	struct nfs_sb_mountdata *sb_mntdata = data;
-	struct nfs_server *server = sb_mntdata->server;
+	struct nfs_server *server = sb_mntdata->server; /* ok */
 	int ret;
 
 	s->s_flags = sb_mntdata->mntflags;
@@ -2229,8 +2229,8 @@ static int nfs_set_super(struct super_block *s, void *data)
          * replicas.  It appears as if we perhaps -should- be keeping an
          * nfs_fsinfo structure there too, need to cross check use of that
          * structure after allocation. */
-	s->s_fs_info = server;
-	ret = set_anon_super(s, server);
+	s->s_fs_info = server; /* XXXXs */
+	ret = set_anon_super(s, server); /* XXXXs */
 	if (ret == 0)
 		server->s_dev = s->s_dev;
 	return ret;
@@ -2276,7 +2276,8 @@ static int nfs_compare_super_address(struct nfs_server *server1,
 static int nfs_compare_super(struct super_block *sb, void *data)
 {
 	struct nfs_sb_mountdata *sb_mntdata = data;
-	struct nfs_server *server = sb_mntdata->server, *old = NFS_SB(sb);
+	struct nfs_server *server = sb_mntdata->server;
+	struct nfs_server *old = NFS_SERVER_SB(sb);
 	int mntflags = sb_mntdata->mntflags;
 
 	if (!nfs_compare_super_address(old, server))
@@ -2347,7 +2348,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 		goto out_err_nosb;
 	}
 
-	if (s->s_fs_info != server) {
+	if (NFS_SERVER_SB(s) != server) {
 		nfs_free_server(server);
 		server = NULL;
 	} else {
@@ -2408,7 +2409,7 @@ error_splat_bdi:
  */
 static void nfs_put_super(struct super_block *s)
 {
-	struct nfs_server *server = NFS_SB(s);
+	struct nfs_server *server = NFS_SERVER_SB(s);
 
 	bdi_unregister(&server->backing_dev_info);
 }
@@ -2418,7 +2419,7 @@ static void nfs_put_super(struct super_block *s)
  */
 static void nfs_kill_super(struct super_block *s)
 {
-	struct nfs_server *server = NFS_SB(s);
+	struct nfs_server *server = NFS_SERVER_SB(s);
 
 	kill_anon_super(s);
 	nfs_fscache_release_super_cookie(s);
@@ -2445,7 +2446,8 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 	dprintk("--> nfs_xdev_mount()\n");
 
 	/* create a new volume representation */
-	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr);
+	server = nfs_clone_server(NFS_SERVER_SB(data->sb), data->fh,
+                                  data->fattr);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out_err_noserver;
@@ -2462,7 +2464,7 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 		goto out_err_nosb;
 	}
 
-	if (s->s_fs_info != server) {
+	if (NFS_SERVER_SB(s) != server) {
 		nfs_free_server(server);
 		server = NULL;
 	} else {
@@ -2482,7 +2484,7 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
 	}
-	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
+	if (mntroot->d_inode->i_op != NFS_SERVER_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
 		dput(mntroot);
 		error = -ESTALE;
 		goto error_splat_super;
@@ -2717,7 +2719,7 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 		goto out_free;
 	}
 
-	if (s->s_fs_info != server) {
+	if (NFS_SERVER_SB(s) != server) {
 		nfs_free_server(server);
 		server = NULL;
 	} else {
@@ -2986,7 +2988,7 @@ out_free_data:
 
 static void nfs4_kill_super(struct super_block *sb)
 {
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server = NFS_SERVER_SB(sb);
 
 	dprintk("--> %s (super %p)\n", __func__, sb);
 	nfs_super_return_all_delegations(sb);
@@ -3016,7 +3018,8 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 	dprintk("--> nfs4_xdev_mount()\n");
 
 	/* create a new volume representation */
-	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr);
+	server = nfs_clone_server(NFS_SERVER_SB(data->sb), data->fh,
+                                  data->fattr);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out_err_noserver;
@@ -3033,7 +3036,7 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 		goto out_err_nosb;
 	}
 
-	if (s->s_fs_info != server) {
+	if (NFS_SERVER_SB(s) != server) {
 		nfs_free_server(server);
 		server = NULL;
 	} else {
@@ -3053,7 +3056,8 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
 	}
-	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
+	if (mntroot->d_inode->i_op !=
+            NFS_SERVER_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
 		dput(mntroot);
 		error = -ESTALE;
 		goto error_splat_super;
@@ -3128,7 +3132,7 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		goto out_err_nosb;
 	}
 
-	if (s->s_fs_info != server) {
+	if (NFS_SERVER_SB(s) != server) {
 		nfs_free_server(server);
 		server = NULL;
 	} else {
@@ -3148,7 +3152,8 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
 	}
-	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
+	if (mntroot->d_inode->i_op !=
+            NFS_SERVER_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
 		dput(mntroot);
 		error = -ESTALE;
 		goto error_splat_super;

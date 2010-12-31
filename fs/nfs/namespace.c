@@ -255,7 +255,7 @@ static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
 	mnt = (struct vfsmount *)devname;
 	if (IS_ERR(devname))
 		goto free_page;
-	mnt = nfs_do_clone_mount(NFS_SB(mnt_parent->mnt_sb), devname, &mountdata);
+	mnt = nfs_do_clone_mount(NFS_SERVER_SB(mnt_parent->mnt_sb), devname, &mountdata);
 free_page:
 	free_page((unsigned long)page);
 out:

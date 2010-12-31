@@ -228,20 +228,47 @@ static inline struct nfs_inode *NFS_I(const struct inode *inode)
 	return container_of(inode, struct nfs_inode, vfs_inode);
 }
 
+#define NEXT_SB_CHANGE 0
+#if NEXT_SB_CHANGE
+static inline struct nfs_sb_fs_info *NFS_SB(const struct super_block *s)
+{
+	return (struct nfs_sb_fs_info *)(s->s_fs_info);
+}
+#else
 static inline struct nfs_server *NFS_SB(const struct super_block *s)
+ {
+	return (struct nfs_server *)(s->s_fs_info);
+ }
+#endif
+
+#if NEXT_SB_CHANGE
+static inline struct nfs_server *NFS_SERVER_SB(const struct super_block *s)
+{
+	return NFS_SB(s)->server;
+}
+#else
+static inline struct nfs_server *NFS_SERVER_SB(const struct super_block *s)
 {
 	return (struct nfs_server *)(s->s_fs_info);
 }
+#endif
 
 static inline struct nfs_fh *NFS_FH(const struct inode *inode)
 {
 	return &NFS_I(inode)->fh;
 }
 
+#if NEXT_SB_CHANGE
 static inline struct nfs_server *NFS_SERVER(const struct inode *inode)
 {
-	return NFS_SB(inode->i_sb);
+	return NFS_SERVER_SB(inode->i_sb);
 }
+#else
+static inline struct nfs_server *NFS_SERVER(const struct inode *inode)
+{
+	return (struct nfs_server *) NFS_SB(inode->i_sb);
+}
+#endif
 
 static inline struct rpc_clnt *NFS_CLIENT(const struct inode *inode)
 {

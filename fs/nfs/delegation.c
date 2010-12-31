@@ -376,7 +376,7 @@ static void nfs_mark_return_delegation(struct nfs_client *clp, struct nfs_delega
  */
 void nfs_super_return_all_delegations(struct super_block *sb)
 {
-	struct nfs_client *clp = NFS_SB(sb)->nfs_client;
+	struct nfs_client *clp = NFS_SERVER_SB(sb)->nfs_client;
 	struct nfs_delegation *delegation;
 
 	if (clp == NULL)

@@ -175,10 +175,11 @@ static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
 					    const struct nfs4_fs_locations *locations)
 {
 	struct vfsmount *mnt = ERR_PTR(-ENOENT);
+        struct nfs_server *server = NFS_SERVER_SB(mnt_parent->mnt_sb);
 	struct nfs_clone_mount mountdata = {
 		.sb = mnt_parent->mnt_sb,
 		.dentry = dentry,
-		.authflavor = NFS_SB(mnt_parent->mnt_sb)->client->cl_auth->au_flavor,
+		.authflavor = server->client->cl_auth->au_flavor,
 	};
 	char *page = NULL, *page2 = NULL;
 	int loc, error;

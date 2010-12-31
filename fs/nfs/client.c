@@ -1510,7 +1510,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 
-	parent_server = NFS_SB(data->sb);
+	parent_server = NFS_SERVER_SB(data->sb);
 	parent_client = parent_server->nfs_client;
 
 	/* Initialise the client representation from the parent server */

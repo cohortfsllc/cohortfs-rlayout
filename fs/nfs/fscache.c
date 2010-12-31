@@ -68,14 +68,14 @@ void nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq,
 				  struct nfs_clone_mount *mntdata)
 {
 	struct nfs_fscache_key *key, *xkey;
-	struct nfs_server *nfss = NFS_SB(sb);
+	struct nfs_server *nfss = NFS_SERVER_SB(sb);
 	struct rb_node **p, *parent;
 	int diff, ulen;
 
 	if (uniq) {
 		ulen = strlen(uniq);
 	} else if (mntdata) {
-		struct nfs_server *mnt_s = NFS_SB(mntdata->sb);
+		struct nfs_server *mnt_s = NFS_SERVER_SB(mntdata->sb);
 		if (mnt_s->fscache_key) {
 			uniq = mnt_s->fscache_key->key.uniquifier;
 			ulen = mnt_s->fscache_key->key.uniq_len;
@@ -169,7 +169,7 @@ non_unique:
  */
 void nfs_fscache_release_super_cookie(struct super_block *sb)
 {
-	struct nfs_server *nfss = NFS_SB(sb);
+	struct nfs_server *nfss = NFS_SERVER_SB(sb);
 
 	dfprintk(FSCACHE, "NFS: releasing superblock cookie (0x%p/0x%p)\n",
 		 nfss, nfss->fscache);
@@ -207,9 +207,9 @@ static void nfs_fscache_enable_inode_cookie(struct inode *inode)
 	if (nfsi->fscache || !NFS_FSCACHE(inode))
 		return;
 
-	if ((NFS_SB(sb)->options & NFS_OPTION_FSCACHE)) {
+	if ((NFS_SERVER_SB(sb)->options & NFS_OPTION_FSCACHE)) {
 		nfsi->fscache = fscache_acquire_cookie(
-			NFS_SB(sb)->fscache,
+			NFS_SERVER_SB(sb)->fscache,
 			&nfs_fscache_inode_object_def,
 			nfsi);
 

@@ -2,6 +2,14 @@
 # Makefile for the Linux nfs filesystem routines.
 #
 
+ifeq ($(CONFIG_PNFS_COHORT),m)
+        EXTRA_CFLAGS += -DCONFIG_PNFS_COHORT
+endif
+
+ifeq ($(CONFIG_PNFS_COHORT),y)
+        EXTRA_CFLAGS += -DCONFIG_PNFS_COHORT
+endif
+
 obj-$(CONFIG_NFS_FS) += nfs.o
 
 nfs-y 			:= client.o dir.o file.o getroot.o inode.o super.o nfs2xdr.o \
@@ -25,3 +33,4 @@ nfs_layout_nfsv41_files-y := nfs4filelayout.o nfs4filelayoutdev.o
 obj-$(CONFIG_PNFS_OBJLAYOUT) += objlayout/
 obj-$(CONFIG_PNFS_BLOCK) += blocklayout/
 obj-$(CONFIG_PNFS_COHORT) += cohort/
+

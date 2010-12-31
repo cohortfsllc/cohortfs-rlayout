@@ -3087,6 +3087,14 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 
 	security_sb_clone_mnt_opts(data->sb, s);
 
+#if defined(CONFIG_PNFS_COHORT)
+        /* Try for a replication layout.  XXX if we don't have one.
+         * Yuk, who has fsinfo? */
+        if (server->layouttypes & LAYOUT4_COHORT_REPLICATION) {
+            replication_layoutget();
+        }
+#endif
+
 	dprintk("<-- nfs4_xdev_mount() = 0\n");
 	return mntroot;
 

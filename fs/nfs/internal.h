@@ -39,6 +39,12 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 	return 0;
 }
 
+struct nfs_sb_mountdata {
+	struct nfs_server *server;
+        struct nfs_server *replicas[7]; /* XXX */
+	int mntflags;
+};
+
 struct nfs_clone_mount {
 	const struct super_block *sb;
 	const struct dentry *dentry;

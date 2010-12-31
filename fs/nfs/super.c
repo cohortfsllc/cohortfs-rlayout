@@ -2216,11 +2216,6 @@ Ebusy:
 	return 0;
 }
 
-struct nfs_sb_mountdata {
-	struct nfs_server *server;
-	int mntflags;
-};
-
 static int nfs_set_super(struct super_block *s, void *data)
 {
 	struct nfs_sb_mountdata *sb_mntdata = data;
@@ -2334,7 +2329,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 		error = PTR_ERR(server);
 		goto out;
 	}
-	sb_mntdata.server = server;
+	sb_mntdata.server = server; /* XXX cohort */
 
 	if (server->flags & NFS_MOUNT_UNSHARED)
 		compare_super = NULL;
@@ -2725,6 +2720,21 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 			goto error_splat_bdi;
 	}
 
+        /* XXXX cohort */
+        if (server->sb && (server->sb != s)) {
+            dprintk("%s: server super inconsistent (%p %p)!\n", __func__,
+                    server->sb, s);
+        } else {
+            if (server->sb)
+                dprintk("%s: found server super %p %p\n", __func__, server,
+                        server->sb);
+            else {
+                dprintk("%s: set server super %p %p %p\n", __func__, server,
+                        server->sb, s);
+                server->sb = s;
+            }
+        }
+
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_fill_super(s);
@@ -2987,7 +2997,7 @@ static void nfs4_kill_super(struct super_block *sb)
 {
 	struct nfs_server *server = NFS_SB(sb);
 
-	dprintk("--> %s\n", __func__);
+	dprintk("--> %s (super %p)\n", __func__, sb);
 	nfs_super_return_all_delegations(sb);
 	kill_anon_super(sb);
 	nfs_fscache_release_super_cookie(sb);
@@ -3040,6 +3050,21 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 		if (error)
 			goto error_splat_bdi;
 	}
+
+        /* XXXX cohort */
+        if (server->sb && (server->sb != s)) {
+            dprintk("%s: server super inconsistent (%p %p)!\n", __func__,
+                    server->sb, s);
+        } else {
+            if (server->sb)
+                dprintk("%s: found server super %p %p\n", __func__, server,
+                        server->sb);
+            else {
+                dprintk("%s: set server super %p %p %p\n", __func__, server,
+                        server->sb, s);
+                server->sb = s;
+            }
+        }
 
 	if (!s->s_root) {
 		/* initial superblock/root creation */
@@ -3127,6 +3152,21 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		if (error)
 			goto error_splat_bdi;
 	}
+
+        /* XXXX cohort */
+        if (server->sb && (server->sb != s)) {
+            dprintk("%s: server super inconsistent (%p %p)!\n", __func__,
+                    server->sb, s);
+        } else {
+            if (server->sb)
+                dprintk("%s: found server super %p %p\n", __func__, server,
+                        server->sb);
+            else {
+                dprintk("%s: set server super %p %p %p\n", __func__, server,
+                        server->sb, s);
+                server->sb = s;
+            }
+        }
 
 	if (!s->s_root) {
 		/* initial superblock/root creation */

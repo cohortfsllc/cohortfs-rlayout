@@ -4489,11 +4489,11 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
                 case LAYOUT4_COHORT_REPLICATION:
                         fsinfo->layouttypes |= FSINFO_LAYOUT_COHORT_REPLICATION;
                         dprintk("%s:  server supports "
-                                "LAYOUT4_COHORT_REPLICATION (%llu)\n",
+                                "LAYOUT4_COHORT_REPLICATION (%lu)\n",
                                 __func__, layouttype);
                         break;
                 default:
-                        dprintk("%s:  unknown layout type %llu\n", __func__,
+                        dprintk("%s:  unknown layout type %lu\n", __func__,
                                 layouttype);
                 }
                 

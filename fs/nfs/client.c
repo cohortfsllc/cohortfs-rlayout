@@ -49,6 +49,7 @@
 #include "internal.h"
 #include "fscache.h"
 #include "pnfs.h"
+#include "cohort.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
@@ -955,6 +956,9 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fh *mntf
 	set_pnfs_layoutdriver(server, mntfh, fsinfo->layouttype);
 	pnfs_set_ds_iosize(server);
 
+        /* COHORT.  hook layout driver(s) */
+        cohort_set_layoutdrivers(server, mntfh, fsinfo);
+
 	server->wtmult = nfs_block_bits(fsinfo->wtmult, NULL);
 
 	server->dtsize = nfs_block_size(fsinfo->dtpref, NULL);
@@ -1358,6 +1362,8 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 {
 	struct nfs_fattr *fattr;
 	int error;
+
+	dprintk("--> %s\n", __func__);
 
 	BUG_ON(!server->nfs_client);
 	BUG_ON(!server->nfs_client->rpc_ops);

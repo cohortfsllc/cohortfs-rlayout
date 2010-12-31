@@ -19,12 +19,22 @@
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
+/*
+ * This module is a stub.  To properly support loadable layout drivers of
+ * new functional types, we will need to propose an extension of the current
+ * driver sub-module interfaces and driver cache.  This can't really happen
+ * until we understand better what the class looks like, so for now, I've
+ * added a new file to the pnfs module, and use direct calls to some
+ * exported functions there.
+ */
+
 static int __init cohort_rpl_init(void)
 {
 	printk(KERN_INFO "%s: Cohort Replication Layout Driver Init\n",
 	       __func__);
-        /* We are a layout driver of a novel class, so won't register
-         * here. */
+
+        /* We are a layout driver of a new class, extend driver cache
+         * to permit registration here. */
 
         return (0);
 }

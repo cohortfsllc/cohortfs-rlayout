@@ -377,6 +377,26 @@ static struct shrinker acl_shrinker = {
 	.seeks		= DEFAULT_SEEKS,
 };
 
+static struct kmem_cache * nfs_sb_fsinfo_cachep;
+
+int __init nfs_init_sb_fsinfo_cache(void)
+{
+	nfs_sb_fsinfo_cachep = kmem_cache_create("nfs_sb_fsinfo_cache",
+                                                 sizeof(struct nfs_inode),
+                                                 0, (SLAB_RECLAIM_ACCOUNT|
+                                                     SLAB_MEM_SPREAD),
+                                                 NULL);
+	if (nfs_sb_fsinfo_cachep == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void nfs_destroy_sb_fsinfo_cache(void)
+{
+	kmem_cache_destroy(nfs_sb_fsinfo_cachep);
+}
+
 /*
  * Register the NFS filesystems
  */

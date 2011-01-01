@@ -39,6 +39,8 @@
 #include <net/ipv6.h>
 #include <linux/nfs_xdr.h>
 #include <linux/sunrpc/bc_xprt.h>
+#include <linux/fs.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 
@@ -108,6 +110,26 @@ struct nfs_client_initdata {
 	int proto;
 	u32 minorversion;
 };
+
+static struct kmem_cache * nfs_server_cachep;
+
+int __init nfs_init_server_cache(void)
+{
+	nfs_server_cachep = kmem_cache_create("nfs_server_cache",
+                                              sizeof(struct nfs_server),
+                                              0, (SLAB_RECLAIM_ACCOUNT|
+                                                  SLAB_MEM_SPREAD),
+                                              NULL);
+	if (nfs_server_cachep == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void nfs_destroy_server_cache(void)
+{
+	kmem_cache_destroy(nfs_server_cachep);
+}
 
 /*
  * Allocate a shared client record
@@ -1045,7 +1067,7 @@ static struct nfs_server *nfs_alloc_server(void)
 {
 	struct nfs_server *server;
 
-	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
+        server = kmem_cache_zalloc(nfs_server_cachep, GFP_KERNEL);
 	if (!server)
 		return NULL;
 
@@ -1059,13 +1081,13 @@ static struct nfs_server *nfs_alloc_server(void)
 
 	server->io_stats = nfs_alloc_iostats();
 	if (!server->io_stats) {
-		kfree(server);
+                kmem_cache_free(nfs_server_cachep, server);
 		return NULL;
 	}
 
 	if (bdi_init(&server->backing_dev_info)) {
 		nfs_free_iostats(server->io_stats);
-		kfree(server);
+                kmem_cache_free(nfs_server_cachep, server);
 		return NULL;
 	}
 
@@ -1097,7 +1119,7 @@ void nfs_free_server(struct nfs_server *server)
 
 	nfs_free_iostats(server->io_stats);
 	bdi_destroy(&server->backing_dev_info);
-	kfree(server);
+	kmem_cache_free(nfs_server_cachep, server);
 	nfs_release_automount_timer();
 	dprintk("<-- nfs_free_server()\n");
 }

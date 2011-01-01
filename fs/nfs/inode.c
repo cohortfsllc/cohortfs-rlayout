@@ -1486,6 +1486,11 @@ static void init_once(void *foo)
 	nfs4_init_once(nfsi);
 }
 
+extern int __init nfs_init_server_cache(void);
+extern void nfs_destroy_server_cache(void);
+extern int __init nfs_init_sb_fsinfo_cache(void);
+extern void nfs_destroy_sb_fsinfo_cache(void);
+
 static int __init nfs_init_inodecache(void)
 {
 	nfs_inode_cachep = kmem_cache_create("nfs_inode_cache",
@@ -1540,6 +1545,14 @@ static void nfsiod_stop(void)
 static int __init init_nfs_fs(void)
 {
 	int err;
+
+        err = nfs_init_sb_fsinfo_cache();
+        if (err < 0)
+            goto out11;
+
+        err = nfs_init_server_cache();
+        if (err < 0)
+            goto out10;
 
 	err = nfs_idmap_init();
 	if (err < 0)
@@ -1611,6 +1624,10 @@ out7:
 out8:
 	nfs_idmap_quit();
 out9:
+        nfs_destroy_server_cache();
+out10:
+        nfs_destroy_sb_fsinfo_cache();
+out11:
 	return err;
 }
 
@@ -1624,6 +1641,8 @@ static void __exit exit_nfs_fs(void)
 	nfs_fscache_unregister();
 	nfs_dns_resolver_destroy();
 	nfs_idmap_quit();
+        nfs_destroy_server_cache();
+        nfs_destroy_sb_fsinfo_cache();
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister("nfs");
 #endif

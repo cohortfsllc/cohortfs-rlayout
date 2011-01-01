@@ -1486,6 +1486,8 @@ static void init_once(void *foo)
 	nfs4_init_once(nfsi);
 }
 
+extern int __init nfs_init_client_cache(void);
+extern void nfs_destroy_client_cache(void);
 extern int __init nfs_init_server_cache(void);
 extern void nfs_destroy_server_cache(void);
 extern int __init nfs_init_sb_fsinfo_cache(void);
@@ -1548,11 +1550,16 @@ static int __init init_nfs_fs(void)
 
         err = nfs_init_sb_fsinfo_cache();
         if (err < 0)
-            goto out11;
+            goto out12;
 
         err = nfs_init_server_cache();
         if (err < 0)
+            goto out11;
+
+        err = nfs_init_client_cache();
+        if (err < 0)
             goto out10;
+
 
 	err = nfs_idmap_init();
 	if (err < 0)
@@ -1624,10 +1631,12 @@ out7:
 out8:
 	nfs_idmap_quit();
 out9:
-        nfs_destroy_server_cache();
+        nfs_destroy_client_cache();
 out10:
-        nfs_destroy_sb_fsinfo_cache();
+        nfs_destroy_server_cache();
 out11:
+        nfs_destroy_sb_fsinfo_cache();
+out12:
 	return err;
 }
 

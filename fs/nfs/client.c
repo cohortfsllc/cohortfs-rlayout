@@ -111,6 +111,7 @@ struct nfs_client_initdata {
 	u32 minorversion;
 };
 
+static struct kmem_cache * nfs_client_cachep;
 static struct kmem_cache * nfs_server_cachep;
 
 int __init nfs_init_server_cache(void)
@@ -131,6 +132,24 @@ void nfs_destroy_server_cache(void)
 	kmem_cache_destroy(nfs_server_cachep);
 }
 
+int __init nfs_init_client_cache(void)
+{
+	nfs_client_cachep = kmem_cache_create("nfs_client_cache",
+                                              sizeof(struct nfs_client),
+                                              0, (SLAB_RECLAIM_ACCOUNT|
+                                                  SLAB_MEM_SPREAD),
+                                              NULL);
+	if (nfs_client_cachep == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void nfs_destroy_client_cache(void)
+{
+	kmem_cache_destroy(nfs_client_cachep);
+}
+
 /*
  * Allocate a shared client record
  *
@@ -143,7 +162,8 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	struct rpc_cred *cred;
 	int err = -ENOMEM;
 
-	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
+        clp = kmem_cache_zalloc(nfs_client_cachep, GFP_KERNEL);
+        if (!clp)
 		goto error_0;
 
 	clp->rpc_ops = cl_init->rpc_ops;
@@ -190,7 +210,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	return clp;
 
 error_cleanup:
-	kfree(clp);
+	kmem_cache_free(nfs_client_cachep, clp);
 error_0:
 	return ERR_PTR(err);
 }
@@ -257,7 +277,7 @@ static void nfs_free_client(struct nfs_client *clp)
 		put_rpccred(clp->cl_machine_cred);
 
 	kfree(clp->cl_hostname);
-	kfree(clp);
+	kmem_cache_free(nfs_client_cachep, clp);
 
 	dprintk("<-- nfs_free_client()\n");
 }

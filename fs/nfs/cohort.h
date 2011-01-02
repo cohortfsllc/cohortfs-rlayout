@@ -13,6 +13,10 @@
 
 #ifdef CONFIG_NFS_V4_1
 
+extern unsigned int cohort_debug;
+
+#define COHORT_DEBUG_LAYOUTGET    (1U << 0)
+
 extern void cohort_set_layoutdrivers(struct nfs_server *,
                                      const struct nfs_fh *,
                                      struct nfs_fsinfo *);

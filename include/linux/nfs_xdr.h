@@ -215,8 +215,16 @@ struct nfs4_layoutget_args {
 	struct pnfs_layout_range range;
 	__u64 minlength;
 	__u32 maxcount;
-	struct inode *inode;
-	struct nfs_open_context *ctx;
+        struct inode *inode;
+        union {
+            struct pnfs_layout{
+                struct nfs_open_context *ctx;
+            } pnfs;
+            struct cohort_layout {
+                struct nfs_server *server;
+                struct nfs_fh *mntfh;
+            } ch;
+        } u_lta;
 	struct nfs4_sequence_args seq_args;
 };
 

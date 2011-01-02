@@ -1919,9 +1919,18 @@ encode_layoutget(struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, args->range.offset);
 	p = xdr_encode_hyper(p, args->range.length);
 	p = xdr_encode_hyper(p, args->minlength);
-	status = pnfs_choose_layoutget_stateid(&stateid,
-					       NFS_I(args->inode)->layout,
-					       args->ctx->state);
+        /* XXX Cohort */
+        switch (args->type) { 
+        case LAYOUT4_COHORT_REPLICATION:
+                /*  anonymous stateid (i.e., {0, 0}) */
+                memset(&stateid, 0, sizeof(nfs4_stateid));
+                break;
+        default:
+                status = pnfs_choose_layoutget_stateid(
+                        &stateid,
+                        NFS_I(args->inode)->layout,
+                        args->u_lta.pnfs.ctx->state);
+        };
 	if (status)
 		return status;
 	p = xdr_encode_opaque_fixed(p, &stateid.data, NFS4_STATEID_SIZE);

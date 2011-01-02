@@ -5476,7 +5476,12 @@ static void nfs4_layoutget_release(void *calldata)
 	put_layout_hdr(NFS_I(lgp->args.inode)->layout);
 	if (lgp->res.layout.buf != NULL)
 		free_page((unsigned long) lgp->res.layout.buf);
-	put_nfs_open_context(lgp->args.ctx);
+        switch (lgp->args.type) {
+        case LAYOUT4_COHORT_REPLICATION:
+                break;
+        default:
+                put_nfs_open_context(lgp->args.u_lta.pnfs.ctx);
+        };
 	kfree(calldata);
 	dprintk("<-- %s\n", __func__);
 }

@@ -596,7 +596,7 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 }
 
 /*
-* Get layout from server.
+* Get pNFS layout from server.
 *    for now, assume that whole file layouts are requested.
 *    arg->offset: 0
 *    arg->length: all ones
@@ -626,7 +626,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp->args.range = *range;
 	lgp->args.type = server->pnfs_curr_ld->id;
 	lgp->args.inode = ino;
-	lgp->args.ctx = get_nfs_open_context(ctx);
+	lgp->args.u_lta.pnfs.ctx = get_nfs_open_context(ctx);
 	lgp->lsegpp = &lseg;
 
 	/* Synchronously retrieve layout information from server and

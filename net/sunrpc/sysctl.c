@@ -35,6 +35,9 @@ EXPORT_SYMBOL_GPL(nfsd_debug);
 unsigned int	nlm_debug;
 EXPORT_SYMBOL_GPL(nlm_debug);
 
+unsigned int	cohort_debug;
+EXPORT_SYMBOL_GPL(cohort_debug);
+
 #ifdef RPC_DEBUG
 
 static struct ctl_table_header *sunrpc_table_header;
@@ -167,6 +170,13 @@ static ctl_table debug_table[] = {
 		.maxlen		= 256,
 		.mode		= 0444,
 		.proc_handler	= proc_do_xprt,
+	},
+	{
+		.procname	= "cohort_debug",
+		.data		= &cohort_debug,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dodebug
 	},
 	{ }
 };

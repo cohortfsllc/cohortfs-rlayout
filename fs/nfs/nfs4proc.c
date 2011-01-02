@@ -5391,20 +5391,32 @@ out:
 static void
 nfs4_layoutget_prepare(struct rpc_task *task, void *calldata)
 {
+	struct nfs_server *server;
+	struct nfs_client *client;
 	struct nfs4_layoutget *lgp = calldata;
 	struct inode *ino = lgp->args.inode;
 	struct nfs_inode *nfsi = NFS_I(ino);
-	struct nfs_server *server = NFS_SERVER(ino);
-	struct nfs_client *clp = NFS_SERVER(ino)->nfs_client;
 
 	dprintk("--> %s\n", __func__);
-	spin_lock(&clp->cl_lock);
+
+        /* XXX maybe split into type indirect calls, but still
+         * prototyping */
+        switch (lgp->args.type) { 
+        case LAYOUT4_COHORT_REPLICATION:
+                server = lgp->args.u_lta.ch.server;
+                break;
+        default:
+                server = NFS_SERVER(ino);
+        };
+        client = server->nfs_client;
+
+	spin_lock(&client->cl_lock);
 	if (matches_outstanding_recall(ino, &lgp->args.range)) {
-		rpc_sleep_on(&clp->cl_rpcwaitq_recall, task, NULL);
-		spin_unlock(&clp->cl_lock);
+		rpc_sleep_on(&client->cl_rpcwaitq_recall, task, NULL);
+		spin_unlock(&client->cl_lock);
 		return;
 	}
-	spin_unlock(&clp->cl_lock);
+	spin_unlock(&client->cl_lock);
 	/* Note the is a race here, where a CB_LAYOUTRECALL can come in
 	 * right now covering the LAYOUTGET we are about to send.
 	 * However, that is not so catastrophic, and there seems

@@ -53,31 +53,30 @@ EXPORT_SYMBOL_GPL(cohort_exit);
  * Attempt to get a Cohort replication layout.  For the moment we will
  * request replication layouts only on filesystem (volume) mounts.
  */
-#if 0
-static int
+int
 cohort_replication_layoutget(struct nfs_server *server,
-                             const struct nfs_fh *mntfh,
-                             struct nfs_fsinfo *fsinfo)
+                             const struct inode *inode,
+                             const struct nfs_fh *mntfh)
+
 {
     /* needed:
      * 1. fh
      * 2. server
-     * 3. anything else?
+     * 3. inode
      */
 
     struct nfs4_layoutget *lgp;
-    struct pnfs_layout_segment *lseg = NULL; /* XXX trouble */
-    struct pnfs_layout_range range[1];
+    struct pnfs_layout_segment *lseg; /* XXX trouble */
+    struct pnfs_layout_range range;
 
     dprintk("--> %s\n", __func__);
 
-    if (! (fsinfo->layouttypes & FSINFO_LAYOUT_COHORT_REPLICATION)) {
-        dprintk("%s: request replication layout unsupported\n",
+    if (! (server->layouttypes & FSINFO_LAYOUT_COHORT_REPLICATION)) {
+        dprintk("%s: request replication layout unsupported by server\n",
                 __func__);
         goto out_fail;
     }
 
-#if 0
     lgp = kzalloc(sizeof(*lgp), GFP_KERNEL);
     if (lgp == NULL) {
         dprintk("%s: cant kzalloc lgp!\n", __func__);
@@ -85,30 +84,35 @@ cohort_replication_layoutget(struct nfs_server *server,
     }
 
     /* Range is always full */
-    range->iomode = IOMODE_RW;
-    range->offset = 0ULL;
-    range->length = NFS4_MAX_UINT64;
+    range.iomode = IOMODE_RW;
+    range.offset = 0ULL;
+    range.length = NFS4_MAX_UINT64;
 
     /* Setup request */
     lgp->args.type = LAYOUT4_COHORT_REPLICATION;
     lgp->args.minlength = 0ULL;
     lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
-    lgp->args.range = *range;
-    lgp->args.inode = nfs_fhget(sb, mntfh, fattr);
-    lgp->args.ctx = NULL; /* ew.  get_nfs_open_context(ctx); */
+
+    lgp->args.range = range;
+    lgp->args.u_lta.ch.server = server;
+    lgp->args.u_lta.ch.mntfh = (struct nfs_fh *) mntfh;
+    /* XXX I'm not 100% sure that it can be used for Cohort
+     * layouts, but there is layoutrecall and outstanding layoutget
+     * synchronization logic (eg, nfs4_layoutget_prepare) that uses
+     * nfs4_inode.  If we -can- get a directory inode (presumably
+     * of the mount), it seems correct to do so. */
+    lgp->args.inode = (struct inode *) inode;
     lgp->lsegpp = &lseg;
         
     /* Synchronously retrieve layout information from server and
      * store in lseg. */
     nfs4_proc_layoutget(lgp);
-#endif
 
     /* XXX finish */
 
     out_fail:
         return (-EINVAL);
 }
-#endif
 
 void
 cohort_set_layoutdrivers(struct nfs_server *server,

@@ -64,6 +64,7 @@
 #include "internal.h"
 #include "fscache.h"
 #include "pnfs.h"
+#include "cohort.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -3088,10 +3089,10 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 	security_sb_clone_mnt_opts(data->sb, s);
 
 #if defined(CONFIG_PNFS_COHORT)
-        /* Try for a replication layout.  XXX if we don't have one.
-         * Yuk, who has fsinfo? */
+        /* Try for a replication layout.  XXX if we don't have one. */
         if (server->layouttypes & LAYOUT4_COHORT_REPLICATION) {
-            //replication_layoutget();
+            //cohort_replication_layoutget(server, mntroot->d_inode, data->fh);
+
         }
 #endif
 

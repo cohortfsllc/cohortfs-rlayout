@@ -53,6 +53,7 @@ EXPORT_SYMBOL_GPL(cohort_exit);
  * Attempt to get a Cohort replication layout.  For the moment we will
  * request replication layouts only on filesystem (volume) mounts.
  */
+#if 0
 static int
 cohort_replication_layoutget(struct nfs_server *server,
                              const struct nfs_fh *mntfh,
@@ -107,6 +108,7 @@ cohort_replication_layoutget(struct nfs_server *server,
     out_fail:
         return (-EINVAL);
 }
+#endif
 
 void
 cohort_set_layoutdrivers(struct nfs_server *server,

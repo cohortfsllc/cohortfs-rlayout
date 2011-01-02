@@ -116,6 +116,9 @@ is_ds_only_client(struct nfs_client *clp)
 #define NFS_SERVER_CH_FLAG_PRIMARY (1U << 0)
 #define NFS_SERVER_CH_FLAG_REPLICA (1U << 1)
 
+/* XXX Provisionally fixed */
+#define COHORT_REPLICATION_MAX_REPLICAS 8
+
 struct nfs_server {
 	struct nfs_client *	nfs_client;	/* shared client and NFS4 state */
 	struct list_head	client_link;	/* List of other nfs_server structs
@@ -193,8 +196,10 @@ struct nfs_server {
 	unsigned short		mountd_protocol;
 
 	/* Cohort */
-	__u32 ch_flags;
 	__u32 layouttypes; /* supported layout types bitmap */
+	struct nfs_client *ch_replicas[COHORT_REPLICATION_MAX_REPLICAS];
+        __u32 n_replicas;
+	__u32 ch_flags;
 };
 
 /* Aggregates an nfs_server with additional state associated with a specific
@@ -207,9 +212,6 @@ struct nfs_server {
  * tracking replica servers, so we'll attempt to decouple the server and
  * superblock concepts through nfs_sb_fs_info.
  */
-
-/* XXX Provisionally fixed */
-#define COHORT_REPLICATION_MAX_REPLICAS 8
 
 struct nfs_sb_fs_info {
     struct nfs_server *server;

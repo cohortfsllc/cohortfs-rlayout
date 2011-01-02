@@ -17,6 +17,10 @@ extern void cohort_set_layoutdrivers(struct nfs_server *,
                                      const struct nfs_fh *,
                                      struct nfs_fsinfo *);
 
+extern int cohort_replication_layoutget(struct nfs_server *server,
+                                        const struct inode *inode,
+                                        const struct nfs_fh *mntfh);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* FS_NFS_PNFS_H */

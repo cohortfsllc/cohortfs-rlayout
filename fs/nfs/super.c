@@ -3093,20 +3093,14 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
         sb_server = NFS_SERVER_SB(s);
         if (sb_server &&
             (sb_server->layouttypes & LAYOUT4_COHORT_REPLICATION)) {
-            dprintk("%s: server: %p \n",
-                    __func__,
-                    sb_server);
-#if 0
             dprintk("%s: server: %p mntroot: %p inode: %p data: %p fh: %p\n",
                     __func__,
-                    ch_server,
+                    sb_server,
                     mntroot, 
                     (mntroot) ? mntroot->d_inode : NULL,
                     data,
                     (data) ? data->fh : NULL);
-                
             cohort_replication_layoutget(sb_server, mntroot->d_inode, data->fh);
-#endif
         }
 #endif
 

@@ -131,6 +131,9 @@ struct pnfs_layoutdriver_type {
 	enum pnfs_try_status
 	(*commit) (struct nfs_write_data *nfs_data, int how);
 
+	enum pnfs_try_status
+	(*metadata_commit) (struct nfs_server *nfs_server, int how);
+
 	int (*setup_layoutcommit) (struct pnfs_layout_hdr *layoutid,
 				   struct nfs4_layoutcommit_args *args);
 

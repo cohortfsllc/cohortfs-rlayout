@@ -5403,12 +5403,19 @@ nfs4_layoutget_prepare(struct rpc_task *task, void *calldata)
          * prototyping */
         switch (lgp->args.type) { 
         case LAYOUT4_COHORT_REPLICATION:
+                dprintk("%s nfsi %p nfsi->layout %p\n",
+                        __func__,
+                        nfsi,
+                        (nfsi) ? nfsi->layout : NULL);
                 server = lgp->args.u_lta.ch.server;
                 break;
         default:
                 server = NFS_SERVER(ino);
         };
         client = server->nfs_client;
+
+        if (! nfsi)
+                return;
 
 	spin_lock(&client->cl_lock);
 	if (matches_outstanding_recall(ino, &lgp->args.range)) {

@@ -3089,7 +3089,6 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 	security_sb_clone_mnt_opts(data->sb, s);
 
 #if defined(CONFIG_PNFS_COHORT)
-        /* Try for a replication layout.  XXX if we don't have one. */
         sb_server = NFS_SERVER_SB(s);
         if (sb_server &&
             (sb_server->layouttypes & FSINFO_LAYOUT_COHORT_REPLICATION)) {
@@ -3105,7 +3104,8 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
                     data,
                     (data) ? data->fh : NULL,
                     nfsi);
-            //cohort_replication_layoutget(sb_server, mntroot->d_inode, data->fh);
+            /* Try for a replication layout, if we don't have one. */
+            cohort_replication_layoutget(sb_server, mntroot->d_inode, data->fh);
         }
 #endif
 

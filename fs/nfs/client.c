@@ -995,11 +995,9 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fh *mntf
 		server->wsize = NFS_MAX_FILE_IO_SIZE;
 	server->wpages = (server->wsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	server->pnfs_blksize = fsinfo->blksize;
-	set_pnfs_layoutdriver(server, mntfh, fsinfo->layouttype);
-	pnfs_set_ds_iosize(server);
-        /* XXX Further refactoring of nfs_server and nfs_sb_fs_info is
-         * suggested */
         server->layouttypes = fsinfo->layouttypes;
+	set_pnfs_layoutdrivers(server, mntfh, fsinfo->layouttype);
+	pnfs_set_ds_iosize(server);
 	server->wtmult = nfs_block_bits(fsinfo->wtmult, NULL);
 	server->dtsize = nfs_block_size(fsinfo->dtpref, NULL);
 	if (server->dtsize > PAGE_CACHE_SIZE * NFS_MAX_READDIR_PAGES)
@@ -1121,7 +1119,7 @@ void nfs_free_server(struct nfs_server *server)
 {
 	dprintk("--> nfs_free_server()\n");
 
-	unset_pnfs_layoutdriver(server);
+	unset_pnfs_layoutdrivers(server);
 	spin_lock(&nfs_client_lock);
 	list_del(&server->client_link);
 	list_del(&server->master_link);

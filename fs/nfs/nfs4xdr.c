@@ -4506,10 +4506,13 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
                                 layouttype);
                 }
                 
-                /* set pNFS layout driver, if valid and not already set */
+                /* XXX Set pNFS layout driver, if valid and not already set.
+                 * The limit of one layout driver per inode is still in
+                 * effect.  Cohort replication layouts and rfc pnfs layouts
+                 * can coexist, since replication layouts are on directory
+                 * inodes and the latter on files. */
                 if (! fsinfo->layouttype)
-                        if (pnfs_p)
-                                fsinfo->layouttype = layouttype;
+                        fsinfo->layouttype = layouttype;
         }
 
 	return 0;

@@ -119,13 +119,36 @@ pnfs_update_last_write(struct nfs_inode *nfsi, loff_t offset, size_t extent)
 }
 
 void
-unset_pnfs_layoutdriver(struct nfs_server *nfss)
+unset_pnfs_layoutdrivers(struct nfs_server *nfss)
 {
+	/* Unset pnfs driver */
 	if (nfss->pnfs_curr_ld) {
 		nfss->pnfs_curr_ld->clear_layoutdriver(nfss);
 		module_put(nfss->pnfs_curr_ld->owner);
 	}
 	nfss->pnfs_curr_ld = NULL;
+
+	/* Unset metadata driver */
+	if (nfss->pnfs_meta_ld) {
+		nfss->pnfs_meta_ld->clear_layoutdriver(nfss);
+		module_put(nfss->pnfs_meta_ld->owner);
+	}
+	nfss->pnfs_meta_ld = NULL;
+}
+
+void
+set_pnfs_layoutdrivers(struct nfs_server *server, const struct nfs_fh *mntfh,
+		      u32 primary_pnfs_driver_id)
+{
+
+    /* Set pnfs layout driver */
+    set_pnfs_layoutdriver(server, mntfh, primary_pnfs_driver_id,
+                          SET_PNFS_LAYOUTDRIVER_FLAG_DATA);
+
+    /* Try to set up metadata layout driver */
+    if (server->layouttypes & FSINFO_LAYOUT_COHORT_REPLICATION)
+        set_pnfs_layoutdriver(server, mntfh, LAYOUT4_COHORT_REPLICATION,
+                              SET_PNFS_LAYOUTDRIVER_FLAG_METADATA);
 }
 
 /*
@@ -136,7 +159,7 @@ unset_pnfs_layoutdriver(struct nfs_server *nfss)
  */
 void
 set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
-		      u32 id)
+		      u32 id, u32 flags)
 {
 	struct pnfs_layoutdriver_type *ld_type = NULL;
 
@@ -162,7 +185,13 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 		dprintk("%s: Could not grab reference on module\n", __func__);
 		goto out_no_driver;
 	}
-	server->pnfs_curr_ld = ld_type;
+
+        if (flags & SET_PNFS_LAYOUTDRIVER_FLAG_METADATA)
+            server->pnfs_meta_ld = ld_type;
+        else
+            server->pnfs_curr_ld = ld_type;
+
+        /* XXX check */
 	if (ld_type->set_layoutdriver(server, mntfh)) {
 		printk(KERN_ERR
 		       "%s: Error initializing mount point for layout driver %u.\n",
@@ -174,8 +203,13 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 	return;
 
 out_no_driver:
-	dprintk("%s: Using NFSv4 I/O\n", __func__);
-	server->pnfs_curr_ld = NULL;
+        if (flags & SET_PNFS_LAYOUTDRIVER_FLAG_METADATA) {
+            dprintk("%s: No metadata layout available\n", __func__);
+            server->pnfs_meta_ld = NULL;
+        } else {
+            dprintk("%s: Using NFSv4 I/O\n", __func__);
+            server->pnfs_curr_ld = NULL;
+        }
 }
 
 int
@@ -243,7 +277,22 @@ get_layout_hdr(struct pnfs_layout_hdr *lo)
 static struct pnfs_layout_hdr *
 pnfs_alloc_layout_hdr(struct inode *ino)
 {
-	struct pnfs_layoutdriver_type *ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	struct pnfs_layoutdriver_type *ld;
+	__u32 class;
+
+	ld = NULL;
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
+
 	return ld->alloc_layout_hdr ? ld->alloc_layout_hdr(ino) :
 		kzalloc(sizeof(struct pnfs_layout_hdr), GFP_KERNEL);
 }
@@ -251,7 +300,23 @@ pnfs_alloc_layout_hdr(struct inode *ino)
 static void
 pnfs_free_layout_hdr(struct pnfs_layout_hdr *lo)
 {
-	struct pnfs_layoutdriver_type *ld = NFS_SERVER(lo->inode)->pnfs_curr_ld;
+	struct inode *ino = lo->inode;
+	struct pnfs_layoutdriver_type *ld;
+	__u32 class;
+
+	ld = NULL;
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
+
 	return ld->alloc_layout_hdr ? ld->free_layout_hdr(lo) : kfree(lo);
 }
 
@@ -259,7 +324,7 @@ static void
 destroy_layout_hdr(struct pnfs_layout_hdr *lo)
 {
 	dprintk("%s: freeing layout cache %p\n", __func__, lo);
-	BUG_ON(!list_empty(&lo->layouts));
+	BUG_ON(!list_empty(&lo->layouts)); /* XXXX valid for metadata? */
 	NFS_I(lo->inode)->layout = NULL;
 	pnfs_free_layout_hdr(lo);
 }
@@ -299,10 +364,24 @@ init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg)
 static void free_lseg(struct pnfs_layout_segment *lseg)
 {
 	struct inode *ino = lseg->layout->inode;
+	struct pnfs_layoutdriver_type *ld = NULL;
 	u64 mask = lseg->pls_notify_mask;
+	__u32 class;
+
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
 
 	BUG_ON(atomic_read(&lseg->pls_refcount) != 0);
-	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
+	ld->free_lseg(lseg);
 	notify_drained(NFS_SERVER(ino)->nfs_client, mask);
 	/* Matched by get_layout_hdr_locked in pnfs_insert_layout */
 	put_layout_hdr(NFS_I(ino)->layout);
@@ -330,7 +409,7 @@ _put_lseg_common(struct pnfs_layout_segment *lseg)
 	rpc_wake_up(&NFS_I(ino)->lo_rpcwaitq);
 }
 
-/* The use of tmp_list is necessary because pnfs_curr_ld->free_lseg
+/* The use of tmp_list is necessary because ld->free_lseg
  * could sleep, so must be called outside of the lock.
  */
 static void
@@ -607,13 +686,31 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	   struct pnfs_layout_range *range)
 {
 	struct inode *ino = lo->inode;
+#if 0 /* XXX */
 	struct nfs_server *server = NFS_SERVER(ino);
+#endif
 	struct nfs4_layoutget *lgp;
 	struct pnfs_layout_segment *lseg = NULL;
+	struct pnfs_layoutdriver_type *ld = NULL;
+	__u32 class;
 
 	dprintk("--> %s\n", __func__);
 
-	BUG_ON(ctx == NULL);
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
+
+	BUG_ON((ctx == NULL) &&
+               (class == SET_PNFS_LAYOUTDRIVER_FLAG_DATA));
+
 	lgp = kzalloc(sizeof(*lgp), GFP_KERNEL);
 	if (lgp == NULL) {
 		put_layout_hdr(lo);
@@ -624,7 +721,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 		lgp->args.minlength = range->length;
 	lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
 	lgp->args.range = *range;
-	lgp->args.type = server->pnfs_curr_ld->id;
+	lgp->args.type = ld->id;
 	lgp->args.inode = ino;
 	lgp->args.u_lta.pnfs.ctx = get_nfs_open_context(ctx);
 	lgp->lsegpp = &lseg;
@@ -683,9 +780,23 @@ return_layout(struct inode *ino, struct pnfs_layout_range *range, bool wait)
 {
 	struct nfs4_layoutreturn *lrp;
 	struct nfs_server *server = NFS_SERVER(ino);
+	struct pnfs_layoutdriver_type *ld = NULL;
 	int status = -ENOMEM;
+	__u32 class;
 
 	dprintk("--> %s\n", __func__);
+
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
 
 	lrp = kzalloc(sizeof(*lrp), GFP_KERNEL);
 	if (lrp == NULL) {
@@ -693,7 +804,7 @@ return_layout(struct inode *ino, struct pnfs_layout_range *range, bool wait)
 		goto out;
 	}
 	lrp->args.reclaim = 0;
-	lrp->args.layout_type = server->pnfs_curr_ld->id;
+	lrp->args.layout_type = ld->id;
 	lrp->args.return_type = RETURN_FILE;
 	lrp->args.range = *range;
 	lrp->args.inode = ino;
@@ -818,9 +929,7 @@ pnfs_insert_layout(struct pnfs_layout_hdr *lo,
 static struct pnfs_layout_hdr *
 alloc_init_layout_hdr(struct inode *ino)
 {
-	struct pnfs_layout_hdr *lo;
-
-	lo = pnfs_alloc_layout_hdr(ino);
+	struct pnfs_layout_hdr *lo = pnfs_alloc_layout_hdr(ino);
 	if (!lo)
 		return NULL;
 	atomic_set(&lo->plh_refcount, 1);
@@ -831,7 +940,7 @@ alloc_init_layout_hdr(struct inode *ino)
 	return lo;
 }
 
-static struct pnfs_layout_hdr *
+struct pnfs_layout_hdr *
 pnfs_find_alloc_layout(struct inode *ino)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
@@ -853,6 +962,7 @@ pnfs_find_alloc_layout(struct inode *ino)
 		pnfs_free_layout_hdr(new);
 	return nfsi->layout;
 }
+EXPORT_SYMBOL_GPL(pnfs_find_alloc_layout);
 
 /*
  * iomode matching rules:
@@ -1002,10 +1112,26 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	struct pnfs_layout_segment *lseg;
 	struct inode *ino = lo->inode;
 	struct nfs_client *clp = NFS_SERVER(ino)->nfs_client;
+	struct pnfs_layoutdriver_type *ld = NULL;
 	int status = 0;
+	__u32 class;
+
+	dprintk("--> %s\n", __func__);
+
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
 
 	/* Inject layout blob into I/O device driver */
-	lseg = NFS_SERVER(ino)->pnfs_curr_ld->alloc_lseg(lo, res);
+	lseg = ld->alloc_lseg(lo, res);
 	if (!lseg || IS_ERR(lseg)) {
 		if (!lseg)
 			status = -ENOMEM;
@@ -1057,7 +1183,7 @@ out:
 out_forget_reply:
 	spin_unlock(&ino->i_lock);
 	lseg->layout = lo;
-	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
+	ld->free_lseg(lseg);
 	spin_lock(&ino->i_lock);
 	goto out;
 }
@@ -1088,15 +1214,29 @@ readahead_range(struct inode *inode, struct list_head *pages, loff_t *offset,
 }
 
 void
-pnfs_set_pg_test(struct inode *inode, struct nfs_pageio_descriptor *pgio)
+pnfs_set_pg_test(struct inode *ino, struct nfs_pageio_descriptor *pgio)
 {
 	struct pnfs_layout_hdr *lo;
-	struct pnfs_layoutdriver_type *ld;
+	struct pnfs_layoutdriver_type *ld = NULL;
+	__u32 class;
+
+	dprintk("--> %s\n", __func__);
+
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
 
 	pgio->pg_test = NULL;
 
-	lo = NFS_I(inode)->layout;
-	ld = NFS_SERVER(inode)->pnfs_curr_ld;
+	lo = NFS_I(ino)->layout;
 	if (!ld || !lo)
 		return;
 
@@ -1457,21 +1597,37 @@ pnfs_try_to_commit(struct nfs_write_data *data,
 	return trypnfs;
 }
 
-void pnfs_cleanup_layoutcommit(struct inode *inode,
+void pnfs_cleanup_layoutcommit(struct inode *ino,
 			       struct nfs4_layoutcommit_data *data)
 {
-	struct nfs_server *nfss = NFS_SERVER(inode);
+	struct pnfs_layoutdriver_type *ld = NULL;
+	__u32 class;
+
+	dprintk("--> %s\n", __func__);
+
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
+	}
 
 	/* TODO: Maybe we should avoid this by allowing the layout driver
 	* to directly xdr its layout on the wire.
 	*/
-	if (nfss->pnfs_curr_ld->cleanup_layoutcommit)
-		nfss->pnfs_curr_ld->cleanup_layoutcommit(
-					NFS_I(inode)->layout, data);
+	if (ld->cleanup_layoutcommit)
+		ld->cleanup_layoutcommit(NFS_I(ino)->layout, data);
 }
 
 /*
  * Set up the argument/result storage required for the RPC call.
+ *
+ * XXXX TODO Fixme for metadata!
  */
 static int
 pnfs_setup_layoutcommit(struct inode *inode,

@@ -230,6 +230,7 @@ struct pnfs_deviceid_cache {
 	struct hlist_head	dc_deviceids[NFS4_DEVICE_ID_HASH_SIZE];
 };
 
+extern struct pnfs_layout_hdr * pnfs_find_alloc_layout(struct inode *ino);
 extern int pnfs_alloc_init_deviceid_cache(struct nfs_client *,
 			void (*free_callback)(struct pnfs_deviceid_node *));
 extern void pnfs_put_deviceid_cache(struct nfs_client *);
@@ -269,8 +270,13 @@ pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
 		   loff_t pos, u64 count, enum pnfs_iomode access_type);
 bool pnfs_return_layout_barrier(struct nfs_inode *, struct pnfs_layout_range *);
 int _pnfs_return_layout(struct inode *, struct pnfs_layout_range *, bool wait);
-void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *mntfh, u32 id);
-void unset_pnfs_layoutdriver(struct nfs_server *);
+
+#define SET_PNFS_LAYOUTDRIVER_FLAG_DATA          0x000
+#define SET_PNFS_LAYOUTDRIVER_FLAG_METADATA      0x001
+
+void set_pnfs_layoutdrivers(struct nfs_server *, const struct nfs_fh *mntfh, u32 id);
+void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *mntfh, u32 id, u32 flags);
+void unset_pnfs_layoutdrivers(struct nfs_server *);
 enum pnfs_try_status pnfs_try_to_write_data(struct nfs_write_data *,
 					     const struct rpc_call_ops *, int);
 enum pnfs_try_status pnfs_try_to_read_data(struct nfs_read_data *,

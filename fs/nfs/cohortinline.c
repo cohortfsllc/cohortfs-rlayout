@@ -15,6 +15,7 @@
 #include <linux/nfs_fs.h>
 
 #include "internal.h"
+#include "pnfs.h"
 #include "nfs4filelayout.h"
 #include "cohort.h"
 
@@ -55,25 +56,41 @@ EXPORT_SYMBOL_GPL(cohort_exit);
  */
 int
 cohort_replication_layoutget(struct nfs_server *server,
-                             const struct inode *inode,
+                             struct inode *ino,
                              const struct nfs_fh *mntfh)
 
 {
-    /* needed:
-     * 1. fh
-     * 2. server
-     * 3. inode
-     */
-
     struct nfs4_layoutget *lgp;
     struct pnfs_layout_segment *lseg; /* XXX trouble */
     struct pnfs_layout_range range;
+    struct pnfs_layout_hdr *layout_hdr = NULL;
 
     dprintk("--> %s\n", __func__);
 
     if (! (server->layouttypes & FSINFO_LAYOUT_COHORT_REPLICATION)) {
         dprintk("%s: request replication layout unsupported by server\n",
                 __func__);
+        goto out_fail;
+    }
+
+    /* Could be improved--check its type */
+    if (! server->pnfs_meta_ld) {
+        dprintk("%s: replication layout driver not registered\n",
+                __func__);
+        goto out_fail;
+    } else  {
+        dprintk("%s: using replication layout driver %p\n",
+                __func__,
+                server->pnfs_meta_ld);
+    }
+
+    /* if the following succeeds, then layout_hdr is both allocated
+     * and linked from NFS_I(ino) */
+    spin_lock(&ino->i_lock);
+    layout_hdr = pnfs_find_alloc_layout(ino);
+    spin_unlock(&ino->i_lock);
+    if (! layout_hdr) {
+        dprintk("%s: pnfs_find_alloc_layout failed!\n", __func__);
         goto out_fail;
     }
 
@@ -105,7 +122,7 @@ cohort_replication_layoutget(struct nfs_server *server,
      * synchronization logic (eg, nfs4_layoutget_prepare) that uses
      * nfs4_inode.  If we -can- get a directory inode (presumably
      * of the mount), it seems correct to do so. */
-    lgp->args.inode = (struct inode *) inode;
+    lgp->args.inode = ino;
     lgp->lsegpp = &lseg;
         
     /* Synchronously retrieve layout information from server and

@@ -94,10 +94,6 @@ cohort_replication_layoutget(struct nfs_server *server,
         goto out_fail;
     }
 
-    /* XXX testing only */
-    if (! (cohort_debug & COHORT_DEBUG_LAYOUTGET))
-        goto out_fail;
-
     lgp = kzalloc(sizeof(*lgp), GFP_KERNEL);
     if (lgp == NULL) {
         dprintk("%s: cant kzalloc lgp!\n", __func__);

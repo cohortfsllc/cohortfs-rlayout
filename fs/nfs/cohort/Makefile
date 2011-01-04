@@ -10,6 +10,6 @@ ifeq ($(CONFIG_PNFS_COHORT),y)
         EXTRA_CFLAGS += -DCONFIG_PNFS_COHORT
 endif
 
-obj-$(CONFIG_PNFS_COHORT) += cohortlayout.o 
-cohortlayout-y := cohortlayoutdev.o 
+obj-$(CONFIG_PNFS_COHORT) += cohort_replication.o
+cohort_replication-y := cohortlayout.o cohortlayoutdev.o 
 

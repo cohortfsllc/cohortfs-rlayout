@@ -15,6 +15,7 @@
 #include <linux/nfs_fs.h>
 
 #include "../internal.h"
+#include "../pnfs.h"
 #include "cohortlayout.h"
 #include "../nfs4filelayout.h"
 

@@ -30,12 +30,8 @@ struct cohort_replication_layout_rmds_addr {
 
 struct cohort_replication_layout_segment {
 	struct pnfs_layout_segment generic_hdr;
-	u32 flags;
-	struct cohort_replication_layout_rmds_addr *dsaddr; /* Point to GETDEVINFO data */
-#if 0 /* we have filehandle consistency */
-	unsigned int num_fh;
-	struct nfs_fh **fh_array;
-#endif
+	struct cohort_replication_layout_rmds_addr *dsaddr;
+	struct nfs_fh fh; /* unused, temporary */
 };
 
 static inline struct cohort_replication_layout_segment *
@@ -46,7 +42,15 @@ COHORT_RPL_LSEG(struct pnfs_layout_segment *lseg)
 			    generic_hdr);
 }
 
-extern struct cohort_replication_layout_rmds_addr *cohort_rpl_get_device_info(
-    struct inode *inode, struct nfs4_deviceid *dev_id);
+extern struct cohort_replication_layout_rmds_addr *
+cohort_rpl_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id);
+
+extern struct cohort_replication_layout_rmds_addr *
+cohort_rpl_find_get_deviceid(struct nfs_client *clp, struct nfs4_deviceid *id);
+
+extern void cohort_rpl_free_deviceid_callback(
+    struct pnfs_deviceid_node *device);
+
+extern void cohort_rpl_print_deviceid(struct nfs4_deviceid *id);
 
 #endif /* FS_NFS_COHORTLAYOUT_H */

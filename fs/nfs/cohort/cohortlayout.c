@@ -15,6 +15,7 @@
 #include <linux/nfs_fs.h>
 
 #include "../internal.h"
+#include "cohortlayout.h"
 #include "../nfs4filelayout.h"
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
@@ -23,21 +24,18 @@ static int
 cohort_rpl_set_layoutdriver(struct nfs_server *nfss,
                             const struct nfs_fh *mntfh)
 {
-    /* It s not clear to me whether this is meaningful for metadata layouts,
-     * or if signature is correct.  Possibly the right signature, but should
-     * cache on superblock */
-#if 0
-	int status = pnfs_alloc_init_deviceid_cache(nfss->nfs_client,
-						nfs4_fl_free_deviceid_callback);
-	if (status) {
-		printk(KERN_WARNING "%s: deviceid cache could not be "
-			"initialized\n", __func__);
-		return status;
-	}
-	dprintk("%s: deviceid cache has been initialized successfully\n",
-		__func__);
-#endif
-	return 0;
+    int status;
+    status = pnfs_alloc_init_deviceid_cache(
+        nfss->nfs_client,
+        cohort_rpl_free_deviceid_callback);
+    if (status) {
+        printk(KERN_WARNING "%s: deviceid cache could not be "
+               "initialized\n", __func__);
+        return status;
+    }
+    dprintk("%s: deviceid cache has been initialized successfully\n",
+            __func__);
+    return 0;
 }
 
 static int
@@ -48,46 +46,104 @@ cohort_rpl_clear_layoutdriver(struct nfs_server *nfss)
 	return 0;
 }
 
-static struct pnfs_layout_segment *
-cohort_rpl_alloc_lseg(struct pnfs_layout_hdr *layoutid,
-		      struct nfs4_layoutget_res *lgr)
+static void
+_cohort_rpl_free_lseg(struct cohort_replication_layout_segment *rpl)
 {
-#if 0
-	struct nfs4_filelayout_segment *fl;
-	int rc;
-	struct nfs4_deviceid id;
-#endif
-
-	dprintk("--> %s\n", __func__);
-#if 0
-	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
-	if (!fl)
-		return NULL;
-
-	rc = filelayout_decode_layout(layoutid, fl, lgr, &id);
-	if (rc != 0 || filelayout_check_layout(layoutid, fl, lgr, &id)) {
-		_filelayout_free_lseg(fl);
-		return NULL;
-	}
-	return &fl->generic_hdr;
-#endif
-        return NULL;
+    /* free any dynamic members of the segment */
+    kfree(rpl);
 }
 
 static void
 cohort_rpl_free_lseg(struct pnfs_layout_segment *lseg)
 {
-#if 0
 	struct nfs_server *nfss = NFS_SERVER(lseg->layout->inode);
-	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
-#endif
+	struct cohort_replication_layout_segment *rpl;
+
 	dprintk("--> %s\n", __func__);
-#if 0
+
+        rpl = COHORT_RPL_LSEG(lseg);
 	pnfs_put_deviceid(nfss->nfs_client->cl_devid_cache,
-			  &fl->dsaddr->deviceid);
-	_filelayout_free_lseg(fl);
-	kfree(fl);
-#endif
+			  &rpl->dsaddr->deviceid);
+	_cohort_rpl_free_lseg(rpl);
+}
+
+/*
+ * cohort_rpl_check_layout()
+ *
+ * Make sure layout segment parameters are sane WRT the device.
+ * At this point no generic layer initialization of the lseg has occurred,
+ * and nothing has been added to the layout_hdr cache.
+ *
+ */
+static int
+cohort_rpl_check_layout(struct pnfs_layout_hdr *lo,
+			struct cohort_replication_layout_segment *rpl,
+			struct nfs4_layoutget_res *lgr,
+			struct nfs4_deviceid *id)
+{
+	struct cohort_replication_layout_rmds_addr *dsaddr;
+	struct nfs_server *nfss;
+	int status = -EINVAL;
+
+	dprintk("--> %s\n", __func__);
+
+	nfss = NFS_SERVER(lo->inode);
+
+	/* find and reference the deviceid */
+	dsaddr = cohort_rpl_find_get_deviceid(nfss->nfs_client, id);
+	if (dsaddr == NULL) {
+		dsaddr = cohort_rpl_get_device_info(lo->inode, id);
+		if (dsaddr == NULL)
+			goto out;
+	}
+	rpl->dsaddr = dsaddr;
+
+	status = 0;
+out:
+	dprintk("--> %s returns %d\n", __func__, status);
+	return status;
+}
+
+static int
+cohort_rpl_decode_layout(struct pnfs_layout_hdr *flo,
+			 struct cohort_replication_layout_segment *rpl,
+			 struct nfs4_layoutget_res *lgr,
+			 struct nfs4_deviceid *id)
+{
+	uint32_t *p = (uint32_t *)lgr->layout.buf;
+
+	dprintk("--> %s \n", __func__);
+
+	memcpy(id, p, sizeof(*id));
+	p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
+	cohort_rpl_print_deviceid(id);
+
+        memcpy(&rpl->fh.data, p, rpl->fh.size);
+        p += XDR_QUADLEN(rpl->fh.size);
+
+	return 0;
+}
+
+static struct pnfs_layout_segment *
+cohort_rpl_alloc_lseg(struct pnfs_layout_hdr *layoutid,
+		      struct nfs4_layoutget_res *lgr)
+{
+	struct cohort_replication_layout_segment *rpl;
+	struct nfs4_deviceid id;
+	int rc;
+
+	dprintk("--> %s\n", __func__);
+	rpl = kzalloc(sizeof(struct cohort_replication_layout_segment),
+                      GFP_KERNEL);
+	if (!rpl)
+		return NULL;
+
+	rc = cohort_rpl_decode_layout(layoutid, rpl, lgr, &id);
+	if (rc != 0 || cohort_rpl_check_layout(layoutid, rpl, lgr, &id)) {
+		_cohort_rpl_free_lseg(rpl);
+		return NULL;
+	}
+	return &rpl->generic_hdr;
 }
 
 /* Not used. */

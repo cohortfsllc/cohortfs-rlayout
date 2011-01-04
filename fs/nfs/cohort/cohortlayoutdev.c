@@ -90,7 +90,7 @@ print_rmds_list(struct cohort_replication_layout_rmds_addr *dsaddr)
 	}
 }
 
-static void _print_deviceid(struct nfs4_deviceid *id)
+void cohort_rpl_print_deviceid(struct nfs4_deviceid *id)
 {
 	u32 *p = (u32 *)id;
 
@@ -242,7 +242,7 @@ cohort_rpl_free_deviceid(struct cohort_replication_layout_rmds_addr *dsaddr)
 	struct cohort_replication_layout_rmds *ds;
 	int i;
 
-	_print_deviceid(&dsaddr->deviceid.de_id);
+	cohort_rpl_print_deviceid(&dsaddr->deviceid.de_id);
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
 		ds = dsaddr->ds_list[i];

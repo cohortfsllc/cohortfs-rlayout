@@ -7,9 +7,9 @@
  *
  *  Matt Benjamin <matt@linuxbox.com>
  *
- *  As is evident below, this file is barely changed from its original
- *  in nfs4filelayoutdev.c.  There may be no reason that a single deviceid
- *  cache can't be used after refactoring.
+ *  As is evident below, this file is minimally changed from its original in
+ *  nfs4filelayoutdev.c.  There may be no reason that a single deviceid cache
+ *  can't be used after refactoring.
  *
  *  Copyright (c) 2002
  *  The Regents of the University of Michigan
@@ -372,32 +372,14 @@ out_err:
 static struct cohort_replication_layout_rmds_addr*
 decode_device(struct inode *ino, struct pnfs_device *pdev)
 {
-	int i, dummy;
-	u32 cnt, num;
-#if 0 /* XXX */
-	u8 *indexp;
-#endif
-
-        /* XXXX TODO Finish! */
-
-	__be32 *p = (__be32 *)pdev->u_pd.pnfs.area, *indicesp;
 	struct cohort_replication_layout_rmds_addr *dsaddr;
+	int i, dummy;
+	u32 num;
+	__be32 *p;
 
-#if 0 /* XXX */
-	/* Get the stripe count (number of stripe index) */
-	cnt = be32_to_cpup(p++);
-	dprintk("%s stripe count  %d\n", __func__, cnt);
-	if (cnt > NFS4_PNFS_MAX_STRIPE_CNT) {
-		printk(KERN_WARNING "%s: stripe count %d greater than "
-		       "supported maximum %d\n", __func__,
-			cnt, NFS4_PNFS_MAX_STRIPE_CNT);
-		goto out_err;
-	}
-#endif
+        p = (__be32 *)pdev->u_pd.pnfs.area;
 
 	/* Check the multipath list count */
-	indicesp = p;
-	p += XDR_QUADLEN(cnt << 2);
 	num = be32_to_cpup(p++);
 	dprintk("%s ds_num %u\n", __func__, num);
 	if (num > NFS4_PNFS_MAX_MULTI_CNT) {
@@ -413,28 +395,8 @@ decode_device(struct inode *ino, struct pnfs_device *pdev)
 	if (!dsaddr)
 		goto out_err;
 
-#if 0 /* XXX */
-	dsaddr->stripe_indices = kzalloc(sizeof(u8) * cnt, GFP_KERNEL);
-	if (!dsaddr->stripe_indices)
-		goto out_err_free;
-	dsaddr->stripe_count = cnt;
-#endif
 	dsaddr->ds_num = num;
 	memcpy(&dsaddr->deviceid.de_id, &pdev->dev_id, sizeof(pdev->dev_id));
-
-#if 0 /* XXX */
-	/* Go back an read stripe indices */
-	p = indicesp;
-	indexp = &dsaddr->stripe_indices[0];
-	for (i = 0; i < dsaddr->stripe_count; i++) {
-		*indexp = be32_to_cpup(p++);
-		if (*indexp >= num)
-			goto out_err_free;
-		indexp++;
-	}
-#endif
-	/* Skip already read multipath list count */
-	p++;
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
 		int j;
@@ -536,20 +498,16 @@ cohort_rpl_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 			goto out_free;
 	}
 
-#if 0 /* XXX Finish */
 	/* set pdev->area */
 	pdev->u_pd.pnfs.area = vmap(pages, max_pages, VM_MAP, PAGE_KERNEL);
 	if (!pdev->u_pd.pnfs.area)
 		goto out_free;
-#endif
 
 	memcpy(&pdev->dev_id, dev_id, sizeof(*dev_id));
 	pdev->layout_type = LAYOUT4_COHORT_REPLICATION;
-#if 0 /* XXX Finish */
 	pdev->u_pd.pnfs.pages = pages;
 	pdev->u_pd.pnfs.pgbase = 0;
 	pdev->u_pd.pnfs.pglen = PAGE_SIZE * max_pages;
-#endif
 	pdev->mincount = 0;
 
 	rc = nfs4_proc_getdeviceinfo(server, pdev);
@@ -563,13 +521,11 @@ cohort_rpl_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	 */
 	dsaddr = decode_and_add_device(inode, pdev);
 out_free:
-#if 0 /* XXX Finish */
 	if (pdev->u_pd.pnfs.area != NULL)
 		vunmap(pdev->u_pd.pnfs.area);
 	for (i = 0; i < max_pages; i++)
 		__free_page(pages[i]);
 	kfree(pages);
-#endif
 	kfree(pdev);
 	dprintk("<-- %s dsaddr %p\n", __func__, dsaddr);
 	return dsaddr;

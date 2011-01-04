@@ -15,5 +15,4 @@
 #include "pnfs.h"
 
 
-
 #endif /* FS_NFS_COHORTLAYOUT_H */

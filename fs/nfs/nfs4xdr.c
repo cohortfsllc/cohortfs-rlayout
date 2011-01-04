@@ -1889,15 +1889,25 @@ encode_getdeviceinfo(struct xdr_stream *xdr,
 		     const struct nfs4_getdeviceinfo_args *args,
 		     struct compound_hdr *hdr)
 {
+        u32 layout_type = args->pdev->layout_type;
 	__be32 *p;
 
 	p = reserve_space(xdr, 16 + NFS4_DEVICEID4_SIZE);
 	*p++ = cpu_to_be32(OP_GETDEVICEINFO);
 	p = xdr_encode_opaque_fixed(p, args->pdev->dev_id.data,
 				    NFS4_DEVICEID4_SIZE);
-	*p++ = cpu_to_be32(args->pdev->layout_type);
-	*p++ = cpu_to_be32(args->pdev->pglen);		/* gdia_maxcount */
-	*p++ = cpu_to_be32(0);				/* bitmap length 0 */
+	*p++ = cpu_to_be32(layout_type);
+        switch (layout_type) {
+        case LAYOUT4_COHORT_REPLICATION:
+                /* XXXX CHECK */
+		*p++ = cpu_to_be32(COHORT_REPLICATION_MAX_REPLICAS);
+		*p++ = cpu_to_be32(0);
+                break;
+        default:
+		/* gdia_maxcount */
+		*p++ = cpu_to_be32(args->pdev->u_pd.pnfs.pglen);
+		*p++ = cpu_to_be32(0); /* bitmap length 0 */
+        }
 	hdr->nops++;
 	hdr->replen += decode_getdeviceinfo_maxsz;
 }
@@ -1919,7 +1929,6 @@ encode_layoutget(struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, args->range.offset);
 	p = xdr_encode_hyper(p, args->range.length);
 	p = xdr_encode_hyper(p, args->minlength);
-        /* XXX Cohort */
         switch (args->type) { 
         case LAYOUT4_COHORT_REPLICATION:
                 /*  anonymous stateid (i.e., {0, 0}) */
@@ -1930,7 +1939,7 @@ encode_layoutget(struct xdr_stream *xdr,
                         &stateid,
                         NFS_I(args->inode)->layout,
                         args->u_lta.pnfs.ctx->state);
-        };
+        }
 	if (status)
 		return status;
 	p = xdr_encode_opaque_fixed(p, &stateid.data, NFS4_STATEID_SIZE);
@@ -2890,6 +2899,7 @@ nfs4_xdr_enc_getdevicelist(struct rpc_rqst *req, uint32_t *p,
 static int nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req, uint32_t *p,
 				      struct nfs4_getdeviceinfo_args *args)
 {
+        u32 layout_type = args->pdev->layout_type;
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
@@ -2900,11 +2910,18 @@ static int nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req, uint32_t *p,
 	encode_sequence(&xdr, &args->seq_args, &hdr);
 	encode_getdeviceinfo(&xdr, args, &hdr);
 
-	/* set up reply kvec. Subtract notification bitmap max size (2)
-	 * so that notification bitmap is put in xdr_buf tail */
-	xdr_inline_pages(&req->rq_rcv_buf, (hdr.replen - 2) << 2,
-			 args->pdev->pages, args->pdev->pgbase,
-			 args->pdev->pglen);
+	switch (layout_type) {
+	case LAYOUT4_COHORT_REPLICATION:
+		/* XXXX TODO Finish */
+		break;
+	default:
+		/* set up reply kvec. Subtract notification bitmap max size (2)
+		 * so that notification bitmap is put in xdr_buf tail */
+		xdr_inline_pages(&req->rq_rcv_buf, (hdr.replen - 2) << 2,
+			args->pdev->u_pd.pnfs.pages,
+			args->pdev->u_pd.pnfs.pgbase,
+			args->pdev->u_pd.pnfs.pglen);
+        }
 
 	encode_nops(&hdr);
 	return 0;
@@ -5415,8 +5432,8 @@ static int decode_getdeviceinfo(struct xdr_stream *xdr,
 				struct pnfs_device *pdev)
 {
 	__be32 *p;
-	uint32_t len, type;
 	int status;
+	uint32_t len, type;
 
 	status = decode_op_hdr(xdr, OP_GETDEVICEINFO);
 	if (status) {

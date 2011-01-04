@@ -217,10 +217,10 @@ struct nfs4_layoutget_args {
 	__u32 maxcount;
         struct inode *inode;
         union {
-            struct pnfs_layout{
+            struct {
                 struct nfs_open_context *ctx;
             } pnfs;
-            struct cohort_layout {
+            struct {
                 struct nfs_server *server;
                 struct nfs_fh *mntfh;
             } ch;

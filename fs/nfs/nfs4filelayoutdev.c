@@ -357,7 +357,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev)
 	int i, dummy;
 	u32 cnt, num;
 	u8 *indexp;
-	__be32 *p = (__be32 *)pdev->area, *indicesp;
+	__be32 *p = (__be32 *)pdev->u_pd.pnfs.area, *indicesp;
 	struct nfs4_file_layout_dsaddr *dsaddr;
 
 	/* Get the stripe count (number of stripe index) */
@@ -508,15 +508,15 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	}
 
 	/* set pdev->area */
-	pdev->area = vmap(pages, max_pages, VM_MAP, PAGE_KERNEL);
-	if (!pdev->area)
+	pdev->u_pd.pnfs.area = vmap(pages, max_pages, VM_MAP, PAGE_KERNEL);
+	if (!pdev->u_pd.pnfs.area)
 		goto out_free;
 
 	memcpy(&pdev->dev_id, dev_id, sizeof(*dev_id));
 	pdev->layout_type = LAYOUT_NFSV4_1_FILES;
-	pdev->pages = pages;
-	pdev->pgbase = 0;
-	pdev->pglen = PAGE_SIZE * max_pages;
+	pdev->u_pd.pnfs.pages = pages;
+	pdev->u_pd.pnfs.pgbase = 0;
+	pdev->u_pd.pnfs.pglen = PAGE_SIZE * max_pages;
 	pdev->mincount = 0;
 
 	rc = nfs4_proc_getdeviceinfo(server, pdev);
@@ -530,8 +530,8 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	 */
 	dsaddr = decode_and_add_device(inode, pdev);
 out_free:
-	if (pdev->area != NULL)
-		vunmap(pdev->area);
+	if (pdev->u_pd.pnfs.area != NULL)
+		vunmap(pdev->u_pd.pnfs.area);
 	for (i = 0; i < max_pages; i++)
 		__free_page(pages[i]);
 	kfree(pages);

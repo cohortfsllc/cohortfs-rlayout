@@ -172,11 +172,19 @@ struct pnfs_layout_hdr {
 struct pnfs_device {
 	struct nfs4_deviceid dev_id;
 	unsigned int  layout_type;
-	unsigned int  mincount;
-	struct page **pages;
-	void          *area;
-	unsigned int  pgbase;
-	unsigned int  pglen;
+	unsigned int  mincount; /* gdia_mincount */
+	union {
+		struct {
+			unsigned int  mincount;
+			struct page **pages;
+			void          *area;
+			unsigned int  pgbase;
+			unsigned int  pglen;
+		} pnfs;
+		struct {
+			u32 flags;
+        	} ch;
+	} u_pd;
 };
 
 struct pnfs_cb_lrecall_info {

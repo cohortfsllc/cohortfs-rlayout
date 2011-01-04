@@ -175,7 +175,6 @@ struct pnfs_device {
 	unsigned int  mincount; /* gdia_mincount */
 	union {
 		struct {
-			unsigned int  mincount;
 			struct page **pages;
 			void          *area;
 			unsigned int  pgbase;

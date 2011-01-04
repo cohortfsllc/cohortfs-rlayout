@@ -2910,18 +2910,12 @@ static int nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req, uint32_t *p,
 	encode_sequence(&xdr, &args->seq_args, &hdr);
 	encode_getdeviceinfo(&xdr, args, &hdr);
 
-	switch (layout_type) {
-	case LAYOUT4_COHORT_REPLICATION:
-		/* XXXX TODO Finish */
-		break;
-	default:
-		/* set up reply kvec. Subtract notification bitmap max size (2)
-		 * so that notification bitmap is put in xdr_buf tail */
-		xdr_inline_pages(&req->rq_rcv_buf, (hdr.replen - 2) << 2,
-			args->pdev->u_pd.pnfs.pages,
-			args->pdev->u_pd.pnfs.pgbase,
-			args->pdev->u_pd.pnfs.pglen);
-        }
+        /* set up reply kvec. Subtract notification bitmap max size (2)
+         * so that notification bitmap is put in xdr_buf tail */
+        xdr_inline_pages(&req->rq_rcv_buf, (hdr.replen - 2) << 2,
+                         args->pdev->u_pd.pnfs.pages,
+                         args->pdev->u_pd.pnfs.pgbase,
+                         args->pdev->u_pd.pnfs.pglen);
 
 	encode_nops(&hdr);
 	return 0;

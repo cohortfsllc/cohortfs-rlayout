@@ -403,7 +403,7 @@ cohort_rpl_decode_device(struct inode *ino, struct pnfs_device *pdev)
 	u32 num;
 	__be32 *p;
 
-        p = (__be32 *) pdev->u_pd.pnfs.area;
+        p = (__be32 *) pdev->area;
 
 	/* XXX We obviously support multipath list count > 1, since each is
          * a replica server */
@@ -515,15 +515,15 @@ cohort_rpl_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	}
 
 	/* set pdev->area */
-	pdev->u_pd.pnfs.area = vmap(pages, max_pages, VM_MAP, PAGE_KERNEL);
-	if (!pdev->u_pd.pnfs.area)
+	pdev->area = vmap(pages, max_pages, VM_MAP, PAGE_KERNEL);
+	if (!pdev->area)
 		goto out_free;
 
 	memcpy(&pdev->dev_id, dev_id, sizeof(*dev_id));
 	pdev->layout_type = LAYOUT4_COHORT_REPLICATION;
-	pdev->u_pd.pnfs.pages = pages;
-	pdev->u_pd.pnfs.pgbase = 0;
-	pdev->u_pd.pnfs.pglen = PAGE_SIZE * max_pages;
+	pdev->pages = pages;
+	pdev->pgbase = 0;
+	pdev->pglen = PAGE_SIZE * max_pages;
 	pdev->mincount = 0;
 
 	rc = nfs4_proc_getdeviceinfo(server, pdev);
@@ -537,8 +537,8 @@ cohort_rpl_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	 */
 	dsaddr = cohort_rpl_decode_and_add_device(inode, pdev);
 out_free:
-	if (pdev->u_pd.pnfs.area != NULL)
-		vunmap(pdev->u_pd.pnfs.area);
+	if (pdev->area != NULL)
+		vunmap(pdev->area);
 	for (i = 0; i < max_pages; i++)
 		__free_page(pages[i]);
 	kfree(pages);

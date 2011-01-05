@@ -173,17 +173,22 @@ struct pnfs_device {
 	struct nfs4_deviceid dev_id;
 	unsigned int  layout_type;
 	unsigned int  mincount; /* gdia_mincount */
+	struct page **pages;
+	void          *area;
+	unsigned int  pgbase;
+	unsigned int  pglen;
+#if 0
+	/* XXX originally u_pd.pnfs branch contained pages, area,
+	* pgbase, pglen.  Restored, but mapping 1k pages looks
+	* expensive.  Saved for future use. */
 	union {
 		struct {
-			struct page **pages;
-			void          *area;
-			unsigned int  pgbase;
-			unsigned int  pglen;
 		} pnfs;
 		struct {
 			u32 flags;
         	} ch;
 	} u_pd;
+#endif
 };
 
 struct pnfs_cb_lrecall_info {

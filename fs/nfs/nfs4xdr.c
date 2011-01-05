@@ -1897,17 +1897,8 @@ encode_getdeviceinfo(struct xdr_stream *xdr,
 	p = xdr_encode_opaque_fixed(p, args->pdev->dev_id.data,
 				    NFS4_DEVICEID4_SIZE);
 	*p++ = cpu_to_be32(layout_type);
-        switch (layout_type) {
-        case LAYOUT4_COHORT_REPLICATION:
-                /* XXXX CHECK */
-		*p++ = cpu_to_be32(COHORT_REPLICATION_MAX_REPLICAS);
-		*p++ = cpu_to_be32(0);
-                break;
-        default:
-		/* gdia_maxcount */
-		*p++ = cpu_to_be32(args->pdev->u_pd.pnfs.pglen);
-		*p++ = cpu_to_be32(0); /* bitmap length 0 */
-        }
+	*p++ = cpu_to_be32(args->pdev->pglen); /* gdia_maxcount */
+	*p++ = cpu_to_be32(0); /* bitmap length 0 */
 	hdr->nops++;
 	hdr->replen += decode_getdeviceinfo_maxsz;
 }
@@ -2913,9 +2904,9 @@ static int nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req, uint32_t *p,
         /* set up reply kvec. Subtract notification bitmap max size (2)
          * so that notification bitmap is put in xdr_buf tail */
         xdr_inline_pages(&req->rq_rcv_buf, (hdr.replen - 2) << 2,
-                         args->pdev->u_pd.pnfs.pages,
-                         args->pdev->u_pd.pnfs.pgbase,
-                         args->pdev->u_pd.pnfs.pglen);
+                         args->pdev->pages,
+                         args->pdev->pgbase,
+                         args->pdev->pglen);
 
 	encode_nops(&hdr);
 	return 0;

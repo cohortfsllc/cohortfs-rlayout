@@ -39,11 +39,14 @@ cohort_rpl_set_layoutdriver(struct nfs_server *nfss,
     return 0;
 }
 
+/* Clear out the layout by destroying its device list */
 static int
 cohort_rpl_clear_layoutdriver(struct nfs_server *nfss)
 {
 	dprintk("--> %s\n", __func__);
 
+	if (nfss->nfs_client->cl_devid_cache)
+		pnfs_put_deviceid_cache(nfss->nfs_client);
 	return 0;
 }
 

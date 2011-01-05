@@ -61,7 +61,7 @@ cohort_replication_layoutget(struct nfs_server *server,
 
 {
     struct nfs4_layoutget *lgp;
-    struct pnfs_layout_segment *lseg; /* XXX trouble */
+    struct pnfs_layout_segment *lseg;
     struct pnfs_layout_range range;
     struct pnfs_layout_hdr *layout_hdr = NULL;
 
@@ -113,11 +113,7 @@ cohort_replication_layoutget(struct nfs_server *server,
     lgp->args.range = range;
     lgp->args.u_lta.ch.server = server;
     lgp->args.u_lta.ch.mntfh = (struct nfs_fh *) mntfh;
-    /* XXX I'm not 100% sure that it can be used for Cohort
-     * layouts, but there is layoutrecall and outstanding layoutget
-     * synchronization logic (eg, nfs4_layoutget_prepare) that uses
-     * nfs4_inode.  If we -can- get a directory inode (presumably
-     * of the mount), it seems correct to do so. */
+    /* Nb.  Cohort inode is super's inode */
     lgp->args.inode = ino;
     lgp->lsegpp = &lseg;
         
@@ -125,11 +121,37 @@ cohort_replication_layoutget(struct nfs_server *server,
      * store in lseg. */
     nfs4_proc_layoutget(lgp);
 
+    /* XXX need ihold? */
+    server->s_ino = ino;
+
+    /* XXX finish? */
+
+out_fail:
+    server->s_ino = NULL;
+    return (-EINVAL);
+}
+
+int
+cohort_rpl_create(struct inode *dir,
+                  struct dentry *dentry,
+                  struct nfs4_createdata *data)
+{
+    struct nfs_server *server = NFS_SERVER(dir);
+
+    dprintk("--> %s\n", __func__);
+
+    if (!server->pnfs_meta_ld || 
+        (server->pnfs_meta_ld->id != LAYOUT4_COHORT_REPLICATION)) {
+        dprintk("%s no valid layout (%p)\n", __func__,
+                server->pnfs_meta_ld);
+        return (-EINVAL);
+    }
+
     /* XXX finish */
 
-    out_fail:
-        return (-EINVAL);
+    return (0);
 }
+EXPORT_SYMBOL_GPL(cohort_rpl_create);
 
 void
 cohort_set_layoutdrivers(struct nfs_server *server,

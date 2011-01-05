@@ -3092,7 +3092,7 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
         sb_server = NFS_SERVER_SB(s);
         if (sb_server &&
             (sb_server->layouttypes & FSINFO_LAYOUT_COHORT_REPLICATION)) {
-            struct nfs_inode *nfsi;
+            struct nfs_inode *nfsi = NULL;
             if (mntroot && mntroot->d_inode)
                 nfsi = NFS_I(mntroot->d_inode);
             dprintk("%s: server: %p mntroot: %p inode: %p data: %p "

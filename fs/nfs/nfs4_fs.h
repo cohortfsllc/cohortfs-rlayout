@@ -355,6 +355,15 @@ struct nfs4_mount_data;
 extern struct svc_version nfs4_callback_version1;
 extern struct svc_version nfs4_callback_version4;
 
+struct nfs4_createdata {
+	struct rpc_message msg;
+	struct nfs4_create_arg arg;
+	struct nfs4_create_res res;
+	struct nfs_fh fh;
+	struct nfs_fattr fattr;
+	struct nfs_fattr dir_fattr;
+};
+
 #else
 
 #define nfs4_close_state(a, b, c) do { } while (0)

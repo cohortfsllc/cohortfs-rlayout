@@ -198,10 +198,15 @@ struct nfs_server {
 	unsigned short		mountd_protocol;
 
 	/* Cohort */
-	__u32 layouttypes; /* supported layout types bitmap */
+	__u32 layouttypes;	/* supported layout types bitmap */
+#if defined(CONFIG_PNFS_COHORT)
+	struct inode *s_ino;
+#if 0 /* XXX going away */
 	struct nfs_client *ch_replicas[COHORT_REPLICATION_MAX_REPLICAS];
         __u32 n_replicas;
 	__u32 ch_flags;
+#endif
+#endif
 };
 
 /* Aggregates an nfs_server with additional state associated with a specific

@@ -103,7 +103,7 @@ struct pnfs_layoutdriver_type {
 	 */
 	ssize_t (*get_blocksize) (void);
 
-/* read and write pagelist should return just 0 (to indicate that
+	/* read and write pagelist should return just 0 (to indicate that
 	 * the layout code has taken control) or 1 (to indicate that the
 	 * layout code wishes to fall back to normal nfs.)  If 0 is returned,
 	 * information can be passed back through nfs_data->res and

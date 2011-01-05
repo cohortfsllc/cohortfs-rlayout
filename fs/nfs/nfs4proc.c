@@ -56,6 +56,9 @@
 #include "iostat.h"
 #include "callback.h"
 #include "pnfs.h"
+#if defined(CONFIG_PNFS_COHORT)
+#include "cohort.h"
+#endif
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
@@ -2720,15 +2723,6 @@ static int nfs4_proc_link(struct inode *inode, struct inode *dir, struct qstr *n
 	return err;
 }
 
-struct nfs4_createdata {
-	struct rpc_message msg;
-	struct nfs4_create_arg arg;
-	struct nfs4_create_res res;
-	struct nfs_fh fh;
-	struct nfs_fattr fattr;
-	struct nfs_fattr dir_fattr;
-};
-
 static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
 		struct qstr *name, struct iattr *sattr, u32 ftype)
 {
@@ -2761,10 +2755,22 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 {
 	int status = nfs4_call_sync(NFS_SERVER(dir), &data->msg,
 				    &data->arg, &data->res, 1);
-	if (status == 0) {
+	if (status == NFS4_OK) {
 		update_changeattr(dir, &data->res.dir_cinfo);
 		nfs_post_op_update_inode(dir, data->res.dir_fattr);
 		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr);
+#if defined(CONFIG_PNFS_COHORT)
+                /* Schedule the operation to be mirrored on Cohort replicas,
+                 * if any.  Initially updates will be done synchronously.
+                 * (Deferral of replica updates asynchronous queues seems like
+                 * a natural optimization.) 
+                 */
+                if (cohort_replicas_p(dir)) {
+                        int ch_status;
+                        /* Nb. data->res has required fh */ 
+                        ch_status = cohort_rpl_create(dir, dentry, data);
+                }
+#endif /* COHORT */
 	}
 	return status;
 }

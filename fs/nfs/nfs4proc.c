@@ -2755,10 +2755,15 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 {
 	int status = nfs4_call_sync(NFS_SERVER(dir), &data->msg,
 				    &data->arg, &data->res, 1);
+
+        dprintk("%s nfs4_call_sync status %d\n", __func__,
+                status);
 	if (status == NFS4_OK) {
 		update_changeattr(dir, &data->res.dir_cinfo);
 		nfs_post_op_update_inode(dir, data->res.dir_fattr);
 		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr);
+                dprintk("%s nfs_instantiate status %d\n", __func__,
+                        status);
 #if defined(CONFIG_PNFS_COHORT)
                 /* Schedule the operation to be mirrored on Cohort replicas,
                  * if any.  Initially updates will be done synchronously.
@@ -2767,8 +2772,11 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
                  */
                 if (cohort_replicas_p(dir)) {
                         int ch_status;
-                        /* Nb. data->res has required fh */ 
+                        /* Nb. data->res has required fh */
+                        dprintk("%s cohort_replicas_p t\n", __func__);
                         ch_status = cohort_rpl_create(dir, dentry, data);
+                        dprintk("%s cohort_rpl_create ch_status %d\n", __func__,
+                                ch_status);
                 }
 #endif /* COHORT */
 	}

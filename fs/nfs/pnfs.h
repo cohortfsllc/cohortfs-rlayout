@@ -243,6 +243,9 @@ struct pnfs_deviceid_cache {
 };
 
 extern struct pnfs_layout_hdr * pnfs_find_alloc_layout(struct inode *ino);
+extern struct pnfs_layout_hdr * pnfs_find_inode_layout(struct inode *ino);
+extern struct pnfs_layout_segment * pnfs_find_lseg(
+    struct pnfs_layout_hdr *lo, struct pnfs_layout_range *range);
 extern int pnfs_alloc_init_deviceid_cache(struct nfs_client *,
 			void (*free_callback)(struct pnfs_deviceid_node *));
 extern void pnfs_put_deviceid_cache(struct nfs_client *);
@@ -275,6 +278,7 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool wait);
 void get_layout_hdr(struct pnfs_layout_hdr *lo);
 void get_lseg(struct pnfs_layout_segment *lseg);
 void put_lseg(struct pnfs_layout_segment *lseg);
+void put_lseg_locked2(struct pnfs_layout_segment *lseg);
 bool should_free_lseg(struct pnfs_layout_range *lseg_range,
 		      struct pnfs_layout_range *recall_range);
 struct pnfs_layout_segment *
@@ -313,6 +317,7 @@ void pnfs_free_lseg_list(struct list_head *tmp_list);
 void pnfs_destroy_layout(struct nfs_inode *);
 void pnfs_destroy_all_layouts(struct nfs_client *);
 void put_layout_hdr(struct pnfs_layout_hdr *lo);
+void put_layout_hdr_locked(struct pnfs_layout_hdr *lo);
 void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     const nfs4_stateid *new,
 			     bool update_barrier);

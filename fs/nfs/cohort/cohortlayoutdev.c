@@ -304,7 +304,9 @@ out:
 }
 
 /*
- * Currently only support ipv4, and one multi-path address.
+ * Currently only support ipv4.  Original comment notwithstanding,
+ * this routine has no idea of the length of any multipath list it
+ * is (partially) decoding.  Shareable.
  */
 static struct cohort_replication_layout_rmds *
 cohort_rpl_decode_and_add_ds(__be32 **pp, struct inode *inode)
@@ -317,34 +319,24 @@ cohort_rpl_decode_and_add_ds(__be32 **pp, struct inode *inode)
 	int tmp[2];
 	__be32 *r_netid, *r_addr, *p = *pp;
 
-        dprintk("%s 1\n", __func__);
+        dprintk("%s -->\n", __func__);
 
 	/* r_netid */
 	nlen = be32_to_cpup(p++);
-        dprintk("%s 1.1\n", __func__);
 	r_netid = p;
-        dprintk("%s 1.2\n", __func__);
 	p += XDR_QUADLEN(nlen);
-        dprintk("%s 1.3\n", __func__);
 
 	/* r_addr */
 	rlen = be32_to_cpup(p++);
-        dprintk("%s 1.4\n", __func__);
 	r_addr = p;
-        dprintk("%s 1.5\n", __func__);
 	p += XDR_QUADLEN(rlen);
-        dprintk("%s 1.6\n", __func__);
 	*pp = p;
-
-        dprintk("%s 2\n", __func__);
 
 	/* Check that netid is "tcp" */
 	if (nlen != 3 ||  memcmp((char *)r_netid, "tcp", 3)) {
 		dprintk("%s: ERROR: non ipv4 TCP r_netid\n", __func__);
 		goto out_err;
 	}
-
-        dprintk("%s 3\n", __func__);
 
 	/* ipv6 length plus port is legal */
 	if (rlen > INET6_ADDRSTRLEN + 8) {
@@ -353,13 +345,9 @@ cohort_rpl_decode_and_add_ds(__be32 **pp, struct inode *inode)
 		goto out_err;
 	}
 
-        dprintk("%s 4\n", __func__);
-
 	buf = kmalloc(rlen + 1, GFP_KERNEL);
 	buf[rlen] = '\0';
 	memcpy(buf, r_addr, rlen);
-
-        dprintk("%s 5\n", __func__);
 
 	/* replace the port dots with dashes for the in4_pton() delimiter*/
 	for (i = 0; i < 2; i++) {
@@ -367,53 +355,44 @@ cohort_rpl_decode_and_add_ds(__be32 **pp, struct inode *inode)
 		*res = '-';
 	}
 
-        dprintk("%s 6\n", __func__);
-
 	/* Currently only support ipv4 address */
 	if (in4_pton(buf, rlen, (u8 *)&ip_addr, '-', &ipend) == 0) {
 		dprintk("%s: Only ipv4 addresses supported\n", __func__);
 		goto out_free;
 	}
 
-        dprintk("%s 7\n", __func__);
-
 	/* port */
 	pstr = ipend;
 	sscanf(pstr, "-%d-%d", &tmp[0], &tmp[1]);
 	port = htons((tmp[0] << 8) | (tmp[1]));
 
-        dprintk("%s 8\n", __func__);
-
 	ds = cohort_replication_layout_rmds_add(inode, ip_addr, port);
 	dprintk("%s Decoded address and port %s\n", __func__, buf);
 out_free:
-        dprintk("%s 9\n", __func__);
 	kfree(buf);
 out_err:
-        dprintk("%s 10\n", __func__);
 	return ds;
 }
 
-/* Decode opaque device data and return the result */
+/*
+ * Decode opaque device data and return the result.  We must support
+ * multipath list count > 1, since each is a replica server. 
+ */
 static struct cohort_replication_layout_rmds_addr*
 cohort_rpl_decode_device(struct inode *ino, struct pnfs_device *pdev)
 {
 	struct cohort_replication_layout_rmds_addr *dsaddr;
-	int i, ds_len;
-	u32 num;
+	u32 i, num;
 	__be32 *p;
 
         p = (__be32 *) pdev->area;
 
-	/* XXX We obviously support multipath list count > 1, since each is
-         * a replica server */
 	num = be32_to_cpup(p++);
-	dprintk("%s ds_num %u\n", __func__, num);
+	dprintk("%s decoding %u replicas\n", __func__, num);
 	dsaddr = kzalloc(sizeof(*dsaddr) +
 			(sizeof(struct cohort_replication_layout_rmds_addr *)
                          * (num - 1)),
 			GFP_KERNEL);
-	dprintk("%s 1\n", __func__);
 	if (!dsaddr)
 		goto out_err;
 
@@ -421,28 +400,14 @@ cohort_rpl_decode_device(struct inode *ino, struct pnfs_device *pdev)
 	memcpy(&dsaddr->deviceid.de_id, &pdev->dev_id, sizeof(pdev->dev_id));
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
-		int j;
-		ds_len = be32_to_cpup(p++); /* multipath count */
-                dprintk("%s 2 i %d ds_len %d\n", __func__,
-                        i,
-                        ds_len);
-		for (j = 0; j < ds_len; j++) {
-                    dprintk("%s 3 i %d j %d\n", __func__,
-                            i,
-                            j);
-                    dsaddr->ds_list[i] = cohort_rpl_decode_and_add_ds(&p, ino);
-                    dprintk("%s 4 i %d j %d\n", __func__,
-                            i,
-                            j);
-                    if (dsaddr->ds_list[i] == NULL)
-                        goto out_err_free;
-		}
-	}
-	dprintk("%s 5\n", __func__);
+            /* decode ds and advance p */
+            dsaddr->ds_list[i] = cohort_rpl_decode_and_add_ds(&p, ino);
+            if (dsaddr->ds_list[i] == NULL)
+                goto out_err_free;
+        }
 	return dsaddr;
 
 out_err_free:
-        dprintk("%s 6\n", __func__);
 	cohort_rpl_free_deviceid(dsaddr);
 out_err:
 	dprintk("%s ERROR: returning NULL\n", __func__);

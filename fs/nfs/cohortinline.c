@@ -132,24 +132,74 @@ out_fail:
 }
 
 int
-cohort_rpl_create(struct inode *dir,
+cohort_rpl_create(struct inode *d_ino,
                   struct dentry *dentry,
                   struct nfs4_createdata *data)
 {
-    struct nfs_server *server = NFS_SERVER(dir);
+    struct pnfs_layout_range range;
+    struct pnfs_layout_hdr *lo = NULL;
+    struct pnfs_layout_segment *lseg = NULL;
+    struct nfs_server *server = NFS_SERVER(d_ino);
+    struct nfs_inode *nfsi = NFS_I(d_ino);
+    struct inode *s_ino = server->s_ino;
+    int code;
 
     dprintk("--> %s\n", __func__);
+
+    code = (-EINVAL);
+
+    /* XXX Shareable preamble:
+     * 1. get s_ino
+     * 2. get lo
+     * 3. get lseg
+     */
+    if (!s_ino) {
+        dprintk("%s no super s_i\n", __func__);
+        goto out_err;
+    }
 
     if (!server->pnfs_meta_ld || 
         (server->pnfs_meta_ld->id != LAYOUT4_COHORT_REPLICATION)) {
         dprintk("%s no valid layout (%p)\n", __func__,
                 server->pnfs_meta_ld);
-        return (-EINVAL);
+        goto out_err;
     }
 
-    /* XXX finish */
+    /* Find and ref layout for d_ino, if possible */
+    range.iomode = IOMODE_RW;
+    range.offset = 0ULL;
+    range.length = NFS4_MAX_UINT64;
 
-    return (0);
+    spin_lock(&s_ino->i_lock);
+    lo = pnfs_find_inode_layout(s_ino);
+    if (!lo) {
+        dprintk("%s no valid layout (%p, %p)\n", __func__,
+                server->pnfs_meta_ld,
+                s_ino);
+        goto out_unlock;
+    }
+
+    /* Try to find the corresponding layout segment */
+    lseg = pnfs_find_lseg(lo, &range);
+    if (lseg)
+        get_lseg(lseg);
+    else
+        goto out_unref_lo;
+
+    /* Call */
+    /* XXX Finish */
+    dprintk("%s got replication layout (%p, %p)\n", __func__,
+            lo, lseg);
+
+    /* Postamble. */
+    spin_lock(&s_ino->i_lock);
+    put_lseg_locked2(lseg);
+out_unref_lo:
+    put_layout_hdr_locked(lo);
+out_unlock:
+    spin_unlock(&s_ino->i_lock);
+out_err:
+    return (code);
 }
 EXPORT_SYMBOL_GPL(cohort_rpl_create);
 

@@ -274,6 +274,23 @@ get_layout_hdr(struct pnfs_layout_hdr *lo)
 	atomic_inc(&lo->plh_refcount);
 }
 
+/*
+ * Caller holds ino->i_lock.
+ */
+struct pnfs_layout_hdr *
+pnfs_find_inode_layout(struct inode *ino)
+{
+    struct pnfs_layout_hdr *lo = NULL;
+    struct nfs_inode *nfsi = NFS_I(ino);
+
+    lo = nfsi->layout;
+    if (lo)
+        get_layout_hdr(lo); /* increment refcount, caller must unref */
+
+    return (lo);
+}
+EXPORT_SYMBOL_GPL(pnfs_find_inode_layout);
+
 static struct pnfs_layout_hdr *
 pnfs_alloc_layout_hdr(struct inode *ino)
 {
@@ -329,7 +346,7 @@ destroy_layout_hdr(struct pnfs_layout_hdr *lo)
 	pnfs_free_layout_hdr(lo);
 }
 
-static void
+void
 put_layout_hdr_locked(struct pnfs_layout_hdr *lo)
 {
 	assert_spin_locked(&lo->inode->i_lock);
@@ -337,6 +354,7 @@ put_layout_hdr_locked(struct pnfs_layout_hdr *lo)
 	if (atomic_dec_and_test(&lo->plh_refcount))
 		destroy_layout_hdr(lo);
 }
+EXPORT_SYMBOL_GPL(put_layout_hdr_locked);
 
 void
 put_layout_hdr(struct pnfs_layout_hdr *lo)
@@ -424,6 +442,34 @@ put_lseg_locked(struct pnfs_layout_segment *lseg,
 		list_add(&lseg->fi_list, tmp_list);
 	}
 }
+
+/* 
+ * Just do what put_lseg does, assuming i_lock held.  If this
+ * is wrong (as above), then so is put_lseg.
+ */
+void
+put_lseg_locked2(struct pnfs_layout_segment *lseg)
+{
+	struct inode *ino;
+        int n_ref;
+
+	if (!lseg)
+		return;
+
+	dprintk("%s: lseg %p ref %d valid %d\n", __func__, lseg,
+		atomic_read(&lseg->pls_refcount),
+		test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
+
+	ino = lseg->layout->inode;
+        n_ref = atomic_dec_return(&lseg->pls_refcount);
+	if (n_ref == 0) {
+		_put_lseg_common(lseg);
+		spin_unlock(&ino->i_lock);
+		free_lseg(lseg);
+	}
+        BUG_ON(n_ref < 0);
+}
+EXPORT_SYMBOL_GPL(put_lseg_locked2);
 
 void
 put_lseg(struct pnfs_layout_segment *lseg)
@@ -994,7 +1040,7 @@ is_matching_lseg(struct pnfs_layout_segment *lseg,
 /*
  * lookup range in layout
  */
-static struct pnfs_layout_segment *
+struct pnfs_layout_segment *
 pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 		struct pnfs_layout_range *range)
 {

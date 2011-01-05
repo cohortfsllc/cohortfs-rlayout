@@ -26,6 +26,8 @@ cohort_replicas_p(struct inode *ino) {
         if (server->pnfs_meta_ld->layout_p()) {
             return 1;
         }
+#else
+        return 1;
 #endif
     }
     return 0;

@@ -56,7 +56,7 @@ EXPORT_SYMBOL_GPL(cohort_exit);
  */
 int
 cohort_replication_layoutget(struct nfs_server *server,
-                             struct inode *ino,
+                             struct inode *s_ino,
                              const struct nfs_fh *mntfh)
 
 {
@@ -64,8 +64,11 @@ cohort_replication_layoutget(struct nfs_server *server,
     struct pnfs_layout_segment *lseg;
     struct pnfs_layout_range range;
     struct pnfs_layout_hdr *layout_hdr = NULL;
+    int code;
 
     dprintk("--> %s\n", __func__);
+
+    code = -EINVAL;
 
     if (! (server->layouttypes & FSINFO_LAYOUT_COHORT_REPLICATION)) {
         dprintk("%s: request replication layout unsupported by server\n",
@@ -85,10 +88,10 @@ cohort_replication_layoutget(struct nfs_server *server,
     }
 
     /* if the following succeeds, then layout_hdr is both allocated
-     * and linked from NFS_I(ino) */
-    spin_lock(&ino->i_lock);
-    layout_hdr = pnfs_find_alloc_layout(ino);
-    spin_unlock(&ino->i_lock);
+     * and linked from NFS_I(s_ino) */
+    spin_lock(&s_ino->i_lock);
+    layout_hdr = pnfs_find_alloc_layout(s_ino);
+    spin_unlock(&s_ino->i_lock);
     if (! layout_hdr) {
         dprintk("%s: pnfs_find_alloc_layout failed!\n", __func__);
         goto out_fail;
@@ -113,23 +116,25 @@ cohort_replication_layoutget(struct nfs_server *server,
     lgp->args.range = range;
     lgp->args.u_lta.ch.server = server;
     lgp->args.u_lta.ch.mntfh = (struct nfs_fh *) mntfh;
-    /* Nb.  Cohort inode is super's inode */
-    lgp->args.inode = ino;
+    lgp->args.inode = s_ino;
     lgp->lsegpp = &lseg;
         
     /* Synchronously retrieve layout information from server and
      * store in lseg. */
     nfs4_proc_layoutget(lgp);
 
-    /* XXX need ihold? */
-    server->s_ino = ino;
-
-    /* XXX finish? */
-
+    /* Install super inode in server->s_ino.
+     * XXX Need ihold?
+     * XXX What lock protects super?
+     */
+    server->s_ino = s_ino;
+    goto out;
 out_fail:
     server->s_ino = NULL;
-    return (-EINVAL);
+out:
+    return (code);
 }
+EXPORT_SYMBOL_GPL(cohort_replication_layoutget);
 
 /*
  * Generic preamble for Cohort replication operations.
@@ -202,6 +207,13 @@ out_err:
     return (code);
 }
 
+/*
+ * Generic postamble for Cohort replication operations.
+ *
+ * Unref each of lseg and lo in the appropriate order.  Note s_ino is assumed
+ * to be held, but is not unrefed. NFS_SERVER(d_ino)->s_ino->i_lock is not
+ * locked on entry, nor is it locked on exit.
+ */
 static inline int
 cohort_rpl_op_postamble(const char *tag,
                         struct inode *d_ino,

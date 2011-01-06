@@ -248,6 +248,26 @@ out_err:
     return (code);
 }
 
+void
+dprintk_fh(const char *func, const char *tag, struct nfs_fh *fh)
+{
+    int ix, ix2, len, max;
+    char *buf;
+    u32 *p;
+
+    ix2 = 0;
+    max = fh->size - sizeof(u32);
+    buf = kzalloc(1024, GFP_KERNEL);
+    for (ix = 0, ix2 = 0; ix < max; ix += sizeof(u32), ix2 += len) {
+        p = (u32 *) (fh->data)+ix;
+        sprintf(buf+ix2, "%x%x%x%x-", p[0], p[1], p[2], p[3]);
+        len = strlen(buf+ix2);
+    }
+    buf[ix2-1] = 0;
+    dprintk("%s: %s 0x%p: %s (%d)\n", func, tag, fh, buf, fh->size);;
+    kfree(buf);
+}
+
 int
 cohort_rpl_create(struct inode *d_ino,
                   struct dentry *dentry,
@@ -271,6 +291,7 @@ cohort_rpl_create(struct inode *d_ino,
             lo, lseg);
 
     /* XXX Finish */
+    dprintk_fh(__func__, "fh", data->res.fh);
 
 out_postamble:
     code = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,

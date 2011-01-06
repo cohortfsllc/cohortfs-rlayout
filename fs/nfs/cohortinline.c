@@ -267,6 +267,7 @@ dprintk_fh(const char *func, const char *tag, struct nfs_fh *fh)
     dprintk("%s: %s 0x%p: %s (%d)\n", func, tag, fh, buf, fh->size);;
     kfree(buf);
 }
+EXPORT_SYMBOL(dprintk_fh);
 
 int
 cohort_rpl_create(struct inode *d_ino,
@@ -291,6 +292,7 @@ cohort_rpl_create(struct inode *d_ino,
             lo, lseg);
 
     /* XXX Finish */
+    dprintk_fh(__func__, "dir_fh", data->arg.dir_fh);
     dprintk_fh(__func__, "fh", data->res.fh);
 
 out_postamble:

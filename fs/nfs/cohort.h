@@ -46,6 +46,9 @@ extern int cohort_rpl_create(struct inode *dir, struct dentry *dentry,
 
 extern void cohort_rpl_return_layouts(struct super_block *sb);
 
+extern void dprintk_fh(const char *func, const char *tag, struct nfs_fh *fh);
+
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* FS_NFS_PNFS_H */

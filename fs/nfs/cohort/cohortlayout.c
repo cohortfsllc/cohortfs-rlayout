@@ -320,8 +320,10 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     dprintk_fh(__func__, "dir_fh", data->arg.dir_fh);
     dprintk_fh(__func__, "fh", data->res.fh);
 
-    /* Ok, for now, we know the fixed ds offset. */
+    /* Ok, for now, we know 1 is the the fixed ds offset of the replica MDS
+     * (0 is offset of the primary MDS). */
     rmds = cohort_rpl_prepare_ds(lseg, 1);
+
     dprintk("%s rmds[1] %p\n", __func__, rmds);
 
 out_postamble:

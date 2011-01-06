@@ -3012,6 +3012,10 @@ static void nfs4_kill_super(struct super_block *sb)
 	struct nfs_server *server = NFS_SERVER_SB(sb);
 
 	dprintk("--> %s (super %p)\n", __func__, sb);
+#if defined(CONFIG_PNFS_COHORT)
+	/* before delegations, which we might be relying on */
+	cohort_rpl_return_layouts(sb);
+#endif
 	nfs_super_return_all_delegations(sb);
 	kill_anon_super(sb);
 	nfs_fscache_release_super_cookie(sb);

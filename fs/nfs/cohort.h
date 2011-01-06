@@ -44,6 +44,8 @@ extern int cohort_replication_layoutget(struct nfs_server *server,
 extern int cohort_rpl_create(struct inode *dir, struct dentry *dentry,
                              struct nfs4_createdata *data);
 
+extern void cohort_rpl_return_layouts(struct super_block *sb);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* FS_NFS_PNFS_H */

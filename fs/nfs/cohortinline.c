@@ -181,10 +181,6 @@ cohort_rpl_op_preamble(const char *tag,
     }
 
     /* Find and ref layout for d_ino, if possible */
-    range.iomode = IOMODE_RW;
-    range.offset = 0ULL;
-    range.length = NFS4_MAX_UINT64;
-
     spin_lock(&(*s_ino)->i_lock);
     *lo = pnfs_find_inode_layout(*s_ino);
     if (! *lo) {
@@ -196,6 +192,10 @@ cohort_rpl_op_preamble(const char *tag,
     }
 
     /* Try to find the corresponding layout segment */
+    range.iomode = IOMODE_RW;
+    range.offset = 0ULL;
+    range.length = NFS4_MAX_UINT64;
+
     *lseg = pnfs_find_lseg(*lo, &range);
     if (*lseg)
         get_lseg(*lseg);
@@ -292,3 +292,52 @@ cohort_set_layoutdrivers(struct nfs_server *server,
     }
 }
 EXPORT_SYMBOL_GPL(cohort_set_layoutdrivers);
+
+/*
+ * Return replication layout(s) for a superblock being unmounted.
+ */
+void
+cohort_rpl_return_layouts(struct super_block *sb)
+{
+    struct pnfs_layout_range range;
+    struct pnfs_layout_hdr *lo = NULL;
+    struct pnfs_layout_segment *lseg = NULL;
+    struct nfs_server *server = NFS_SERVER_SB(sb);
+    struct inode *s_ino = server->s_ino;
+
+    dprintk("--> %s\n", __func__);
+
+    /* Do nothing if no super inode */
+    if (!s_ino)
+        goto out;
+
+    /* Do nothing if no replication layout driver */
+    if (!server->pnfs_meta_ld || 
+        (server->pnfs_meta_ld->id != LAYOUT4_COHORT_REPLICATION))
+        goto out;
+
+    /* XXX Should we try to commit anythig outstanding?  Should
+     * our caller have done so? */
+
+    /* Find and ref layout for d_ino, if possible */
+    spin_lock(&s_ino->i_lock);
+    lo = pnfs_find_inode_layout(s_ino);
+    if (lo) {
+        range.iomode = IOMODE_RW;
+        range.offset = 0ULL;
+        range.length = NFS4_MAX_UINT64;
+
+        /* balances -initial layoutget- */
+        lseg = pnfs_find_lseg(lo, &range);
+        if (lseg)
+            put_lseg_locked2(lseg);
+
+        /* put hdr */
+        put_layout_hdr_locked(lo);
+    }
+
+    spin_unlock(&s_ino->i_lock);
+out:
+    return;
+}
+EXPORT_SYMBOL_GPL(cohort_rpl_return_layouts);

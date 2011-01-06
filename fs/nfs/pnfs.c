@@ -629,6 +629,7 @@ pnfs_destroy_layout(struct nfs_inode *nfsi)
 	lo = nfsi->layout;
 	if (lo) {
 		pnfs_clear_lseg_list(lo, &tmp_list, &range);
+/* XXX Fixme--have segs: */
 		WARN_ON(!list_empty(&nfsi->layout->segs));
 		WARN_ON(!list_empty(&nfsi->layout->layouts));
 		WARN_ON(atomic_read(&nfsi->layout->plh_refcount) != 1);
@@ -1931,7 +1932,12 @@ pnfs_put_deviceid_cache(struct nfs_client *clp)
 		int i;
 		/* Verify cache is empty */
 		for (i = 0; i < NFS4_DEVICE_ID_HASH_SIZE; i++)
+#if 0 /* XXX Check here AFTER ensuring that we do have devices,
+       * or something. */
 			BUG_ON(!hlist_empty(&local->dc_deviceids[i]));
+#else
+#warning Cohort check cl_devid_cache consistency later
+#endif
 		clp->cl_devid_cache = NULL;
 		spin_unlock(&clp->cl_lock);
 		kfree(local);

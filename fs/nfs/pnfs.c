@@ -1066,6 +1066,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 		ret ? test_bit(NFS_LSEG_VALID, &ret->pls_flags) : 0);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pnfs_find_lseg);
 
 /*
  * Layout segment is retreived from the server if not cached.

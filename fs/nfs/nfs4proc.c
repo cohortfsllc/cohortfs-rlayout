@@ -2753,8 +2753,9 @@ static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
 
 static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_createdata *data)
 {
-	int status = nfs4_call_sync(NFS_SERVER(dir), &data->msg,
-				    &data->arg, &data->res, 1);
+        struct nfs_server *server = NFS_SERVER(dir);
+	int status = nfs4_call_sync(server, &data->msg, &data->arg,
+                                    &data->res, 1);
 
         dprintk("%s nfs4_call_sync status %d\n", __func__,
                 status);
@@ -2774,7 +2775,8 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
                         int ch_status;
                         /* Nb. data->res has required fh */
                         dprintk("%s cohort_replicas_p t\n", __func__);
-                        ch_status = cohort_rpl_create(dir, dentry, data);
+                        ch_status = server->pnfs_meta_ld->create(
+                                server, dir, dentry, data);
                         dprintk("%s cohort_rpl_create ch_status %d\n", __func__,
                                 ch_status);
                 }

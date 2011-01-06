@@ -53,4 +53,7 @@ extern void cohort_rpl_free_deviceid_callback(
 
 extern void cohort_rpl_print_deviceid(struct nfs4_deviceid *id);
 
+extern struct cohort_replication_layout_rmds *
+cohort_rpl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx);
+
 #endif /* FS_NFS_COHORTLAYOUT_H */

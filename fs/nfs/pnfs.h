@@ -123,6 +123,10 @@ struct pnfs_layoutdriver_type {
 	void (*write_end_cleanup)(struct file *filp,
 				  struct pnfs_fsdata *fsdata);
 
+        /* Metadata ops */
+	int (*create)(struct nfs_server *server, struct inode *d_ino,
+                      struct dentry *dentry, struct nfs4_createdata *data);
+
 	/* Consistency ops */
 	/* 2 problems:
 	 * 1) the page list contains nfs_pages, NOT pages

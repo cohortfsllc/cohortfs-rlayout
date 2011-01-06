@@ -16,6 +16,7 @@
 
 #include "../internal.h"
 #include "../pnfs.h"
+#include "../cohort.h"
 #include "cohortlayout.h"
 #include "../nfs4filelayout.h"
 
@@ -183,6 +184,153 @@ cohort_rpl_metadata_commit(struct nfs_server *server, int sync)
     return PNFS_ATTEMPTED;
 }
 
+/*
+ * Generic preamble for Cohort replication operations.
+ *
+ * Acquire and, where applicable, ref each OUT variable in the appropriate
+ * order.  NFS_SERVER(d_ino)->s_ino->i_lock is not locked on entry, nor
+ * locked on exit.  If either of lo or lseg is non-NULL on exit, the
+ * caller is responsible to call the corresponding put_xxx routine to balance
+ * its refcount.
+ */
+static inline int
+cohort_rpl_op_preamble(const char *tag,
+                       struct inode *d_ino,
+                       /* OUT */
+                       struct nfs_server **server,
+                       struct inode **s_ino,
+                       struct pnfs_layout_hdr **lo,
+                       struct pnfs_layout_segment **lseg)
+{
+    struct pnfs_layout_range range;
+    int code;
+
+    dprintk("--> %s\n", __func__);
+
+    code = -EINVAL;
+
+    *lo = NULL;
+    *lseg = NULL;
+    *server = NFS_SERVER(d_ino);
+    *s_ino = (*server) ? (*server)->s_ino : NULL;
+
+    if (! *s_ino) {
+        dprintk("%s %s no super s_ino\n", __func__,
+                tag);
+        goto out_err;
+    }
+
+    if (!(*server)->pnfs_meta_ld || 
+        ((*server)->pnfs_meta_ld->id != LAYOUT4_COHORT_REPLICATION)) {
+        dprintk("%s %s no valid layout (%p)\n", __func__,
+                tag,
+                (*server)->pnfs_meta_ld);
+        goto out_err;
+    }
+
+    /* Find and ref layout for d_ino, if possible */
+    spin_lock(&(*s_ino)->i_lock);
+    *lo = pnfs_find_inode_layout(*s_ino);
+    if (! *lo) {
+        dprintk("%s %s no valid layout (%p, %p)\n", __func__,
+                tag,
+                (*server)->pnfs_meta_ld,
+                *s_ino);
+        goto out_unlock;
+    }
+
+    /* Try to find the corresponding layout segment */
+    range.iomode = IOMODE_RW;
+    range.offset = 0ULL;
+    range.length = NFS4_MAX_UINT64;
+
+    *lseg = pnfs_find_lseg(*lo, &range);
+    if (*lseg)
+        get_lseg(*lseg);
+
+    code = NFS4_OK;
+out_unlock:
+    spin_unlock(&(*s_ino)->i_lock);
+out_err:
+    return (code);
+}
+
+/*
+ * Generic postamble for Cohort replication operations.
+ *
+ * Unref each of lseg and lo in the appropriate order.  Note s_ino is assumed
+ * to be held, but is not unrefed. NFS_SERVER(d_ino)->s_ino->i_lock is not
+ * locked on entry, nor is it locked on exit.
+ */
+static inline int
+cohort_rpl_op_postamble(const char *tag,
+                        struct inode *d_ino,
+                        struct nfs_server *server,
+                        struct inode *s_ino,
+                        struct pnfs_layout_hdr *lo,
+                        struct pnfs_layout_segment *lseg)
+{
+    int code;
+
+    dprintk("--> %s\n", __func__);
+
+    code = -EINVAL;
+
+    /* !s_ino --> !lo and !lseg */
+    if (!s_ino)
+        goto out_err;
+
+    /* !i_locked */
+    spin_lock(&s_ino->i_lock);
+
+    if (lseg)
+        put_lseg_locked2(lseg);
+
+    if (lo)
+        put_layout_hdr_locked(lo);
+
+    spin_unlock(&s_ino->i_lock);
+    code = NFS4_OK;
+
+out_err:
+    return (code);
+}
+
+static int
+cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
+                  struct dentry *dentry, struct nfs4_createdata *data)
+{
+    struct pnfs_layout_hdr *lo;
+    struct pnfs_layout_segment *lseg;
+    struct cohort_replication_layout_rmds *rmds;
+    struct inode *s_ino = server->s_ino;
+
+    int code = -EINVAL;
+
+    code = cohort_rpl_op_preamble(__func__, d_ino, &server, &s_ino,
+                                  &lo, &lseg);
+    if (code)
+        goto out_postamble;
+
+    /* Call */
+    dprintk("%s got replication layout (%p, %p)\n", __func__,
+            lo, lseg);
+
+    /* XXX Finish */
+    dprintk_fh(__func__, "dir_fh", data->arg.dir_fh);
+    dprintk_fh(__func__, "fh", data->res.fh);
+
+    /* Ok, for now, we know the fixed ds offset. */
+    rmds = cohort_rpl_prepare_ds(lseg, 1);
+    dprintk("%s rmds[1] %p\n", __func__, rmds);
+
+out_postamble:
+    code = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
+                                   lo, lseg);
+
+    return (code);
+}
+
 static struct pnfs_layoutdriver_type cohort_replication_layout = {
 	.id = LAYOUT4_COHORT_REPLICATION,
 	.name = "LAYOUT4_COHORT_REPLICATION",
@@ -197,6 +345,7 @@ static struct pnfs_layoutdriver_type cohort_replication_layout = {
 	.write_pagelist          = cohort_rpl_write_pagelist,
 	.commit                  = cohort_rpl_commit,
 	.metadata_commit         = cohort_rpl_metadata_commit,
+        .create                  = cohort_rpl_create,
 };
 
 static

@@ -593,3 +593,4 @@ cohort_rpl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 	}
 	return dsaddr->ds_list[ds_idx];
 }
+EXPORT_SYMBOL_GPL(cohort_rpl_prepare_ds);

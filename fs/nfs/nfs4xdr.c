@@ -2890,7 +2890,6 @@ nfs4_xdr_enc_getdevicelist(struct rpc_rqst *req, uint32_t *p,
 static int nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req, uint32_t *p,
 				      struct nfs4_getdeviceinfo_args *args)
 {
-        u32 layout_type = args->pdev->layout_type;
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
@@ -4500,11 +4499,11 @@ static int decode_pnfs_layout_types(struct xdr_stream *xdr,
                 case LAYOUT4_COHORT_REPLICATION:
                         fsinfo->layouttypes |= FSINFO_LAYOUT_COHORT_REPLICATION;
                         dprintk("%s:  server supports "
-                                "LAYOUT4_COHORT_REPLICATION (%lu)\n",
+                                "LAYOUT4_COHORT_REPLICATION (%u)\n",
                                 __func__, layouttype);
                         break;
                 default:
-                        dprintk("%s:  unknown layout type %lu\n", __func__,
+                        dprintk("%s:  unknown layout type %u\n", __func__,
                                 layouttype);
                 }
                 

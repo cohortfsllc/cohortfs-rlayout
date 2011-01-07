@@ -31,6 +31,7 @@
 #define FS_NFS_PNFS_H
 
 #include <linux/nfs_page.h>
+#include "nfs4_fs.h"
 #include "callback.h"
 
 enum {

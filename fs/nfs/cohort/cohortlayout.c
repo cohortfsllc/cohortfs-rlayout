@@ -296,6 +296,10 @@ out_err:
     return (code);
 }
 
+#define nfs4_rmds_call_sync(rmds, msg, args, res, cache_reply) \
+	(rmds)->ds_client->cl_mvops->call_sync((server), (msg), \
+         &(args)->seq_args, &(res)->seq_res, (cache_reply))
+
 static int
 cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
                   struct dentry *dentry, struct nfs4_createdata *data)
@@ -305,7 +309,7 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     struct cohort_replication_layout_rmds *rmds;
     struct inode *s_ino = server->s_ino;
 
-    int code = -EINVAL;
+    int code2, code = -EINVAL;
 
     code = cohort_rpl_op_preamble(__func__, d_ino, &server, &s_ino,
                                   &lo, &lseg);
@@ -313,7 +317,7 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
         goto out_postamble;
 
     /* Call */
-    dprintk("%s got replication layout (%p, %p)\n", __func__,
+    dprintk("%s found replication layout (%p, %p)\n", __func__,
             lo, lseg);
 
     /* XXX Finish */
@@ -323,12 +327,24 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     /* Ok, for now, we know 1 is the the fixed ds offset of the replica MDS
      * (0 is offset of the primary MDS). */
     rmds = cohort_rpl_prepare_ds(lseg, 1);
-
+    if (!rmds) {
+        dprintk("%s couldnt instantiate replica rmds\n", __func__);
+        code = NFS4ERR_STALE;
+        goto out_postamble;
+    }
     dprintk("%s rmds[1] %p\n", __func__, rmds);
 
+    /* Update createdata compound to include fh as attr4, and
+     * sync send it to the server in rmds. */
+    data->arg.crt_fh = data->res.fh;
+
+    /* XXX reset res? */
+    code = nfs4_rmds_call_sync(
+        rmds, &data->msg, &data->arg, &data->res, 1 /* cache reply */);
+
 out_postamble:
-    code = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
-                                   lo, lseg);
+    code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
+                                    lo, lseg);
 
     return (code);
 }

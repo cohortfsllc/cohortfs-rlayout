@@ -362,6 +362,7 @@ struct nfs4_createdata {
 	struct nfs_fh fh;
 	struct nfs_fattr fattr;
 	struct nfs_fattr dir_fattr;
+	struct nfs_fattr fh_fattr;
 };
 
 #else

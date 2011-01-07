@@ -823,6 +823,7 @@ struct nfs4_create_arg {
 	const struct nfs_server *	server;
 	const struct iattr *		attrs;
 	const struct nfs_fh *		dir_fh;
+	const struct nfs_fh *		crt_fh;
 	const u32 *			bitmask;
 	struct nfs4_sequence_args 	seq_args;
 };

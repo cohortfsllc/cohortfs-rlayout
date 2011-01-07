@@ -107,6 +107,9 @@ static int nfs4_stat_to_errno(int);
 				nfs4_owner_maxsz + \
 				nfs4_group_maxsz + \
 				4 + 4)
+#if 0 /* XXXX Cohort up maxsz? */
+ + (NFS4_FHSIZE >> 2)
+#endif
 #define encode_savefh_maxsz     (op_encode_hdr_maxsz)
 #define decode_savefh_maxsz     (op_decode_hdr_maxsz)
 #define encode_restorefh_maxsz  (op_encode_hdr_maxsz)
@@ -883,7 +886,7 @@ static void encode_nfs4_verifier(struct xdr_stream *xdr, const nfs4_verifier *ve
 	xdr_encode_opaque_fixed(p, verf->data, NFS4_VERIFIER_SIZE);
 }
 
-static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const struct nfs_server *server)
+static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const struct nfs_server *server, const struct nfs_fh *fh)
 {
 	char owner_name[IDMAP_NAMESZ];
 	char owner_group[IDMAP_NAMESZ];
@@ -940,6 +943,9 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		len += 16;
 	else if (iap->ia_valid & ATTR_MTIME)
 		len += 4;
+#if 0 /* XXX Cohort */
+        encode fh maxsize? realsize?
+#endif
 	p = reserve_space(xdr, len);
 
 	/*
@@ -988,7 +994,12 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		bmval1 |= FATTR4_WORD1_TIME_MODIFY_SET;
 		*p++ = cpu_to_be32(NFS4_SET_TO_SERVER_TIME);
 	}
-
+#if 0
+        /* Cohort */
+        if (fh) {
+                bmval0 |= FATTR4_WORD0_FILEHANDLE;
+        }
+#endif
 	/*
 	 * Now we backfill the bitmap and the attribute buffer length.
 	 */
@@ -1069,7 +1080,7 @@ static void encode_create(struct xdr_stream *xdr, const struct nfs4_create_arg *
 	hdr->nops++;
 	hdr->replen += decode_create_maxsz;
 
-	encode_attrs(xdr, create->attrs, create->server);
+	encode_attrs(xdr, create->attrs, create->server, create->crt_fh);
 }
 
 static void encode_getattr_one(struct xdr_stream *xdr, uint32_t bitmap, struct compound_hdr *hdr)
@@ -1324,21 +1335,22 @@ static inline void encode_createmode(struct xdr_stream *xdr, const struct nfs_op
 	switch(arg->open_flags & O_EXCL) {
 	case 0:
 		*p = cpu_to_be32(NFS4_CREATE_UNCHECKED);
-		encode_attrs(xdr, arg->u.attrs, arg->server);
+		encode_attrs(xdr, arg->u.attrs, arg->server, NULL);
 		break;
 	default:
 		clp = arg->server->nfs_client;
 		if (clp->cl_mvops->minor_version > 0) {
 			if (nfs4_has_persistent_session(clp)) {
 				*p = cpu_to_be32(NFS4_CREATE_GUARDED);
-				encode_attrs(xdr, arg->u.attrs, arg->server);
+				encode_attrs(xdr, arg->u.attrs, arg->server,
+                                        NULL);
 			} else {
 				struct iattr dummy;
 
 				*p = cpu_to_be32(NFS4_CREATE_EXCLUSIVE4_1);
 				encode_nfs4_verifier(xdr, &arg->u.verifier);
 				dummy.ia_valid = 0;
-				encode_attrs(xdr, &dummy, arg->server);
+				encode_attrs(xdr, &dummy, arg->server, NULL);
 			}
 		} else {
 			*p = cpu_to_be32(NFS4_CREATE_EXCLUSIVE);
@@ -1649,7 +1661,7 @@ static void encode_setattr(struct xdr_stream *xdr, const struct nfs_setattrargs 
 	xdr_encode_opaque_fixed(p, arg->stateid.data, NFS4_STATEID_SIZE);
 	hdr->nops++;
 	hdr->replen += decode_setattr_maxsz;
-	encode_attrs(xdr, arg->iap, server);
+	encode_attrs(xdr, arg->iap, server, NULL);
 }
 
 static void encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclientid *setclientid, struct compound_hdr *hdr)

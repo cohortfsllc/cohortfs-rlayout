@@ -300,18 +300,18 @@ static inline int
 nfs41_call_sync(struct nfs_server *server,
                 struct nfs_client *client,
                 struct rpc_message *msg,
-                struct nfs4_create_arg *arg,
-                struct nfs4_create_res *res,
+                struct nfs4_sequence_args *seq_args,
+                struct nfs4_sequence_res *seq_res,
                 int cache_reply)
 {
     int code;
 
     /* set up seq_args with client session */
-    arg->seq_args.sa_session = client->cl_session;
+    seq_args->sa_session = client->cl_session;
 
     /* call with supplied client */
     code = client->cl_mvops->call_sync(
-        server, msg, &arg->seq_args, &res->seq_res, cache_reply);
+        server, msg, seq_args, seq_res, cache_reply);
 
     return (code);
 }
@@ -363,7 +363,51 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
 
     /* Session-aware call_sync wrapper */
     code = nfs41_call_sync(server, rmds->ds_client, &data->msg,
-                           &data->arg, &data->res, 1 /* cache reply */);
+                           &data->arg.seq_args, &data->res.seq_res,
+                           1 /* cache reply */);
+
+out_postamble:
+    code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
+                                    lo, lseg);
+
+    return (code);
+}
+
+static int
+cohort_rpl_remove(struct nfs_server *server, struct inode *d_ino,
+                  struct rpc_message *msg, struct nfs_removeargs *arg,
+                  struct nfs_removeres *res)
+{
+    struct pnfs_layout_hdr *lo;
+    struct pnfs_layout_segment *lseg;
+    struct cohort_replication_layout_rmds *rmds;
+    struct inode *s_ino = server->s_ino;
+
+    int code2, code = -EINVAL;
+
+    code = cohort_rpl_op_preamble(__func__, d_ino, &server, &s_ino,
+                                  &lo, &lseg);
+    if (code)
+        goto out_postamble;
+
+    dprintk("%s found replication layout (%p, %p)\n", __func__,
+            lo, lseg);
+
+    /* Ok, for now, we know 1 is the the fixed ds offset of the replica MDS
+     * (0 is offset of the primary MDS). */
+    rmds = cohort_rpl_prepare_ds(lseg, 1);
+    if (!rmds) {
+        dprintk("%s couldnt instantiate replica rmds\n", __func__);
+        code = NFS4ERR_STALE;
+        goto out_postamble;
+    }
+    dprintk("%s rmds[1] %p ds_session %p\n", __func__, rmds,
+        rmds->ds_client->cl_session);
+
+    /* Session-aware call_sync wrapper */
+    code = nfs41_call_sync(server, rmds->ds_client, msg, &arg->seq_args,
+                           &res->seq_res,
+                           1 /* cache reply */);
 
 out_postamble:
     code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
@@ -386,7 +430,9 @@ static struct pnfs_layoutdriver_type cohort_replication_layout = {
 	.write_pagelist          = cohort_rpl_write_pagelist,
 	.commit                  = cohort_rpl_commit,
 	.metadata_commit         = cohort_rpl_metadata_commit,
-        .create                  = cohort_rpl_create,
+	.create                  = cohort_rpl_create,
+	.remove                  = cohort_rpl_remove,
+	/* XXX finish! */
 };
 
 static

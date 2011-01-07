@@ -127,6 +127,9 @@ struct pnfs_layoutdriver_type {
         /* Metadata ops */
 	int (*create)(struct nfs_server *server, struct inode *d_ino,
                       struct dentry *dentry, struct nfs4_createdata *data);
+	int (*remove)(struct nfs_server *server, struct inode *d_ino,
+                      struct rpc_message *msg, struct nfs_removeargs *args,
+                      struct nfs_removeres *res);
 
 	/* Consistency ops */
 	/* 2 problems:

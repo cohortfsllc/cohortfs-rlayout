@@ -2574,6 +2574,16 @@ static int _nfs4_proc_remove(struct inode *dir, struct qstr *name)
 	if (status == 0) {
 		update_changeattr(dir, &res.cinfo);
 		nfs_post_op_update_inode(dir, res.dir_attr);
+#if defined(CONFIG_PNFS_COHORT)
+                if (cohort_replicas_p(dir)) {
+                        int ch_status;
+                        dprintk("%s cohort_replicas_p t\n", __func__);
+                        ch_status = server->pnfs_meta_ld->remove(
+                                server, dir, &msg, &args, &res);
+                        dprintk("%s cohort_rpl_remove ch_status %d\n", __func__,
+                                ch_status);
+                }
+#endif /* COHORT */
 	}
 	nfs_free_fattr(res.dir_attr);
 out:

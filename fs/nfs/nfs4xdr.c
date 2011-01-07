@@ -966,6 +966,11 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		bmval0 |= FATTR4_WORD0_SIZE;
 		p = xdr_encode_hyper(p, iap->ia_size);
 	}
+        /* Cohort */
+        if (fh) {
+                bmval0 |= FATTR4_WORD0_FILEHANDLE;
+                p = xdr_encode_opaque(p, fh->data, fh->size);
+        }
 	if (iap->ia_valid & ATTR_MODE) {
 		bmval1 |= FATTR4_WORD1_MODE;
 		*p++ = cpu_to_be32(iap->ia_mode & S_IALLUGO);
@@ -1000,11 +1005,6 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		bmval1 |= FATTR4_WORD1_TIME_MODIFY_SET;
 		*p++ = cpu_to_be32(NFS4_SET_TO_SERVER_TIME);
 	}
-        /* Cohort */
-        if (fh) {
-                bmval0 |= FATTR4_WORD0_FILEHANDLE;
-                p = xdr_encode_opaque(p, fh->data, fh->size);
-        }
 
 	/*
 	 * Now we backfill the bitmap and the attribute buffer length.

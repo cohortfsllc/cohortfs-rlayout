@@ -605,6 +605,7 @@ out:
 
 struct nfs41_call_sync_data {
 	const struct nfs_server *seq_server;
+	struct nfs4_session *seq_session;
 	struct nfs4_sequence_args *seq_args;
 	struct nfs4_sequence_res *seq_res;
 	int cache_reply;

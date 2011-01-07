@@ -332,7 +332,8 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
         code = NFS4ERR_STALE;
         goto out_postamble;
     }
-    dprintk("%s rmds[1] %p\n", __func__, rmds);
+    dprintk("%s rmds[1] %p ds_session %p\n", __func__, rmds,
+        rmds->ds_client->cl_session);
 
     /* Update createdata compound to include fh as attr4, and
      * sync send it to the server in rmds. */

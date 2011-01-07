@@ -339,6 +339,7 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     data->arg.crt_fh = data->res.fh;
 
     /* XXX reset res? */
+    memset(&data->res, 0, sizeof(struct nfs4_create_res));
     code = nfs4_rmds_call_sync(
         rmds, &data->msg, &data->arg, &data->res, 1 /* cache reply */);
 

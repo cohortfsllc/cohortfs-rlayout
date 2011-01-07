@@ -943,9 +943,14 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		len += 16;
 	else if (iap->ia_valid & ATTR_MTIME)
 		len += 4;
+
         /* Cohort */
-        if (fh)
-                len += (4 /* space marshal the length */ + fh->size /* and the bytes */);
+        if (fh) {
+                /* space to marshal the length + length */
+                len += (4 + fh->size);
+                dprintk("%s: will marshall nfs_fh (%d)\n", __func__,
+                        len);
+        }
 
 	p = reserve_space(xdr, len);
 

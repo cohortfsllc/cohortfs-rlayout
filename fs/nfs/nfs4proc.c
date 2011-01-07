@@ -67,7 +67,6 @@
 
 #define NFS4_MAX_LOOP_ON_RECOVER (10)
 
-struct nfs4_opendata;
 static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
@@ -745,26 +744,6 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 	nfsi->change_attr = cinfo->after;
 	spin_unlock(&dir->i_lock);
 }
-
-struct nfs4_opendata {
-	struct kref kref;
-	struct nfs_openargs o_arg;
-	struct nfs_openres o_res;
-	struct nfs_open_confirmargs c_arg;
-	struct nfs_open_confirmres c_res;
-	struct nfs_fattr f_attr;
-	struct nfs_fattr dir_attr;
-	struct path path;
-	struct dentry *dir;
-	struct nfs4_state_owner *owner;
-	struct nfs4_state *state;
-	struct iattr attrs;
-	unsigned long timestamp;
-	unsigned int rpc_done : 1;
-	int rpc_status;
-	int cancelled;
-};
-
 
 static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 {
@@ -1701,6 +1680,8 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 	struct nfs_server       *server = NFS_SERVER(dir);
 	struct nfs4_opendata *opendata;
 	int status;
+	
+	dprintk("--> %s %p\n", __func__, dir);
 
 	/* Protect against reboot recovery conflicts */
 	status = -ENOMEM;
@@ -1725,6 +1706,17 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 	if (status != 0)
 		goto err_opendata_put;
 
+#if defined(CONFIG_PNFS_COHORT)
+	dprintk("%s 1 %p\n", __func__, dir);
+        if (cohort_replicas_p(dir)) {
+                int ch_status;
+                dprintk("%s cohort_replicas_p t\n", __func__);
+                ch_status = server->pnfs_meta_ld->open(server, dir, opendata);
+                dprintk("%s cohort_rpl_open ch_status %d\n", __func__,
+                        ch_status);
+        }
+#endif /* COHORT */
+
 	state = nfs4_opendata_to_nfs4_state(opendata);
 	status = PTR_ERR(state);
 	if (IS_ERR(state))
@@ -1743,6 +1735,9 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 			nfs_setattr_update_inode(state->inode, sattr);
 		nfs_post_op_update_inode(state->inode, opendata->o_res.f_attr);
 	}
+	
+	dprintk("%s 2 %p\n", __func__, dir);
+	
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
 	*res = state;

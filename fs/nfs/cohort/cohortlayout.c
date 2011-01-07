@@ -416,6 +416,14 @@ out_postamble:
     return (code);
 }
 
+int cohort_rpl_open(struct nfs_server *server, struct inode *d_ino,
+                    struct nfs4_opendata *opendata)
+{
+    int code = 0;
+
+    return (code);
+}
+
 static struct pnfs_layoutdriver_type cohort_replication_layout = {
 	.id = LAYOUT4_COHORT_REPLICATION,
 	.name = "LAYOUT4_COHORT_REPLICATION",
@@ -432,6 +440,7 @@ static struct pnfs_layoutdriver_type cohort_replication_layout = {
 	.metadata_commit         = cohort_rpl_metadata_commit,
 	.create                  = cohort_rpl_create,
 	.remove                  = cohort_rpl_remove,
+        .open                    = cohort_rpl_open,
 	/* XXX finish! */
 };
 

@@ -130,6 +130,8 @@ struct pnfs_layoutdriver_type {
 	int (*remove)(struct nfs_server *server, struct inode *d_ino,
                       struct rpc_message *msg, struct nfs_removeargs *args,
                       struct nfs_removeres *res);
+	int (*open)(struct nfs_server *server, struct inode *d_ino,
+                    struct nfs4_opendata *opendata);
 
 	/* Consistency ops */
 	/* 2 problems:

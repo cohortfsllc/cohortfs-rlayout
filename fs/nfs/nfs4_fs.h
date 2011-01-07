@@ -365,6 +365,25 @@ struct nfs4_createdata {
 	struct nfs_fattr fh_fattr;
 };
 
+struct nfs4_opendata {
+	struct kref kref;
+	struct nfs_openargs o_arg;
+	struct nfs_openres o_res;
+	struct nfs_open_confirmargs c_arg;
+	struct nfs_open_confirmres c_res;
+	struct nfs_fattr f_attr;
+	struct nfs_fattr dir_attr;
+	struct path path;
+	struct dentry *dir;
+	struct nfs4_state_owner *owner;
+	struct nfs4_state *state;
+	struct iattr attrs;
+	unsigned long timestamp;
+	unsigned int rpc_done : 1;
+	int rpc_status;
+	int cancelled;
+};
+
 #else
 
 #define nfs4_close_state(a, b, c) do { } while (0)

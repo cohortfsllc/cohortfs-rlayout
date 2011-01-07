@@ -943,9 +943,10 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		len += 16;
 	else if (iap->ia_valid & ATTR_MTIME)
 		len += 4;
-#if 0 /* XXX Cohort */
-        encode fh maxsize? realsize?
-#endif
+        /* Cohort */
+        if (fh)
+                len += (4 /* space marshal the length */ + fh->size /* and the bytes */);
+
 	p = reserve_space(xdr, len);
 
 	/*
@@ -994,12 +995,12 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		bmval1 |= FATTR4_WORD1_TIME_MODIFY_SET;
 		*p++ = cpu_to_be32(NFS4_SET_TO_SERVER_TIME);
 	}
-#if 0
         /* Cohort */
         if (fh) {
                 bmval0 |= FATTR4_WORD0_FILEHANDLE;
+                p = xdr_encode_opaque(p, fh->data, fh->size);
         }
-#endif
+
 	/*
 	 * Now we backfill the bitmap and the attribute buffer length.
 	 */

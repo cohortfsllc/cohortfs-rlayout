@@ -574,8 +574,17 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	return 0;
 }
 
+/*
+ * Ok.  I didn't invent this.  The key session invariant supporting pnfs
+ * server indirection is arg ds_session.  If this is supplied, the server
+ * argument is ignored.
+ *
+ * It's still worrisome that some code somewhere in the call path could try
+ * to use server to find any RPC or session attribute, when the caller was
+ * trying to communicate with a DS.
+ */
 int nfs4_setup_sequence(const struct nfs_server *server,
-		struct nfs4_session *ds_session,
+			struct nfs4_session *ds_session,
 			struct nfs4_sequence_args *args,
 			struct nfs4_sequence_res *res,
 			int cache_reply,
@@ -605,19 +614,24 @@ out:
 
 struct nfs41_call_sync_data {
 	const struct nfs_server *seq_server;
+
 	struct nfs4_session *seq_session;
 	struct nfs4_sequence_args *seq_args;
 	struct nfs4_sequence_res *seq_res;
 	int cache_reply;
 };
 
+/* Ok.  If the caller explicitly set a session, pass it to nfs4_setup_sequence
+ * so it overrides the server session. */
 static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs41_call_sync_data *data = calldata;
+	struct nfs4_session *ds_session = 
+                (data->seq_session) ? data->seq_session : NULL;
 
 	dprintk("--> %s data->seq_server %p\n", __func__, data->seq_server);
 
-	if (nfs4_setup_sequence(data->seq_server, NULL, data->seq_args,
+	if (nfs4_setup_sequence(data->seq_server, ds_session, data->seq_args,
 				data->seq_res, data->cache_reply, task))
 		return;
 	rpc_call_start(task);
@@ -646,6 +660,8 @@ struct rpc_call_ops nfs41_call_priv_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
+/* Allow session propagation (and redirection) through existing
+ * nfs4_sequence_args. */
 static int nfs4_call_sync_sequence(struct nfs_server *server,
 				   struct rpc_message *msg,
 				   struct nfs4_sequence_args *args,
@@ -655,14 +671,20 @@ static int nfs4_call_sync_sequence(struct nfs_server *server,
 {
 	int ret;
 	struct rpc_task *task;
+	struct nfs4_session *session =  
+                (args->sa_session) ? args->sa_session : NULL;
+        struct rpc_clnt *clnt = 
+                (session) ? session->clp->cl_rpcclient : server->client;
+
 	struct nfs41_call_sync_data data = {
-		.seq_server = server,
+		.seq_server = server, /* XXX server->client may be wrong */
+                .seq_session = session,
 		.seq_args = args,
 		.seq_res = res,
 		.cache_reply = cache_reply,
 	};
 	struct rpc_task_setup task_setup = {
-		.rpc_client = server->client,
+		.rpc_client = clnt,
 		.rpc_message = msg,
 		.callback_ops = &nfs41_call_sync_ops,
 		.callback_data = &data
@@ -687,6 +709,7 @@ int _nfs4_call_sync_session(struct nfs_server *server,
 			    struct nfs4_sequence_res *res,
 			    int cache_reply)
 {
+        dprintk("--> %s\n", __func__);
 	return nfs4_call_sync_sequence(server, msg, args, res, cache_reply, 0);
 }
 

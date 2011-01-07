@@ -335,9 +335,11 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     dprintk("%s rmds[1] %p ds_session %p\n", __func__, rmds,
         rmds->ds_client->cl_session);
 
+    /* XXX merge with call sync macro as new static inline... */
     /* Update createdata compound to include fh as attr4, and
      * sync send it to the server in rmds. */
     data->arg.crt_fh = data->res.fh;
+    data->arg.seq_args.sa_session = rmds->ds_client->cl_session;
 
     /* XXX reset res? */
     memset(&data->res, 0, sizeof(struct nfs4_create_res));

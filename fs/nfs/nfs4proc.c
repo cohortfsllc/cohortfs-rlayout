@@ -2566,6 +2566,8 @@ static int _nfs4_proc_remove(struct inode *dir, struct qstr *name)
 	};
 	int status = -ENOMEM;
 
+        dprintk("--> %s\n", __func__);
+
 	res.dir_attr = nfs_alloc_fattr();
 	if (res.dir_attr == NULL)
 		goto out;

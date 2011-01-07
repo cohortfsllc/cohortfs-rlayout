@@ -296,9 +296,32 @@ out_err:
     return (code);
 }
 
-#define nfs4_rmds_call_sync(rmds, msg, args, res, cache_reply) \
-	(rmds)->ds_client->cl_mvops->call_sync((server), (msg), \
-         &(args)->seq_args, &(res)->seq_res, (cache_reply))
+static inline int
+nfs41_call_sync(struct nfs_server *server,
+                struct nfs_client *client,
+                struct rpc_message *msg,
+                struct nfs4_create_arg *arg,
+                struct nfs4_create_res *res,
+                int cache_reply)
+{
+    int code;
+
+    /* set up seq_args with client session */
+    arg->seq_args.sa_session = client->cl_session;
+
+    /* call with supplied client */
+    code = client->cl_mvops->call_sync(
+        server, msg, &arg->seq_args, &res->seq_res, cache_reply);
+
+    return (code);
+}
+
+static inline void
+cohort_rpl_updatedata_create(struct nfs4_createdata *data)
+{
+    data->arg.crt_fh = data->res.fh;
+    memset(&data->res, 0, sizeof(struct nfs4_create_res));
+}
 
 static int
 cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
@@ -335,16 +358,12 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     dprintk("%s rmds[1] %p ds_session %p\n", __func__, rmds,
         rmds->ds_client->cl_session);
 
-    /* XXX merge with call sync macro as new static inline... */
-    /* Update createdata compound to include fh as attr4, and
-     * sync send it to the server in rmds. */
-    data->arg.crt_fh = data->res.fh;
-    data->arg.seq_args.sa_session = rmds->ds_client->cl_session;
+    /* Update call for mirror at DS (e.g., set FH) */
+    cohort_rpl_updatedata_create(data);
 
-    /* XXX reset res? */
-    memset(&data->res, 0, sizeof(struct nfs4_create_res));
-    code = nfs4_rmds_call_sync(
-        rmds, &data->msg, &data->arg, &data->res, 1 /* cache reply */);
+    /* Session-aware call_sync wrapper */
+    code = nfs41_call_sync(server, rmds->ds_client, &data->msg,
+                           &data->arg, &data->res, 1 /* cache reply */);
 
 out_postamble:
     code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,

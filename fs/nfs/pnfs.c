@@ -745,9 +745,6 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	   struct pnfs_layout_range *range)
 {
 	struct inode *ino = lo->inode;
-#if 0 /* XXX */
-	struct nfs_server *server = NFS_SERVER(ino);
-#endif
 	struct nfs4_layoutget *lgp;
 	struct pnfs_layout_segment *lseg = NULL;
 	struct pnfs_layoutdriver_type *ld = NULL;

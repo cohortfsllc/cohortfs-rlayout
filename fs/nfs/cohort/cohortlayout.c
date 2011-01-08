@@ -316,6 +316,35 @@ nfs41_call_sync(struct nfs_server *server,
     return (code);
 }
 
+/* RINTEGRITY RPC support */
+
+struct cohort_rintegrity_data {
+	struct rpc_message msg;
+	struct nfs41_rintegrity_arg arg;
+	struct nfs41_rintegrity_res res;
+};
+
+static struct cohort_rintegrity_data *
+cohort_alloc_rintegrity_data()
+{
+    struct cohort_rintegrity_data *data;
+
+    data = kzalloc(sizeof(struct cohort_rintegrity_data), GFP_KERNEL);
+    if (data != NULL) {
+        // struct nfs_server *server = NFS_SERVER(dir);
+
+        data->msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RINTEGRITY];
+        data->msg.rpc_argp = &data->arg;
+        data->msg.rpc_resp = &data->res;
+#if 0 /* XXX Finish! */
+        data->arg.fh = fh;
+        data->arg.stateid = stateid;
+        data->arg.client = client;
+#endif
+    }
+    return data;
+}
+
 static inline void
 cohort_rpl_updatedata_create(struct nfs4_createdata *data)
 {
@@ -365,6 +394,9 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
                            &data->arg.seq_args, &data->res.seq_res,
                            1 /* cache reply */);
 
+    if (!code)
+        pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
+
 out_postamble:
     code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
                                     lo, lseg);
@@ -407,6 +439,9 @@ cohort_rpl_remove(struct nfs_server *server, struct inode *d_ino,
     code = nfs41_call_sync(server, rmds->ds_client, msg, &arg->seq_args,
                            &res->seq_res,
                            1 /* cache reply */);
+
+    if (!code)
+        pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
 
 out_postamble:
     code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,

@@ -1104,9 +1104,9 @@ struct cohort_replication_layoutupdate4 {
 	struct cohort_signed_integrity4 **si_list;
 };
 
-struct nfs41_rintegrity_args {
-	struct nfs_fh *fh;
-	nfs4_stateid *stateid;
+struct nfs41_rintegrity_arg {
+	struct nfs_fh fh;
+	nfs4_stateid stateid;
 	struct nfs_client *client;
 	struct nfs4_sequence_args seq_args;
 };

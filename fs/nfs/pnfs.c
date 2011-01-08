@@ -97,6 +97,7 @@ pnfs_need_layoutcommit(struct nfs_inode *nfsi, struct nfs_open_context *ctx)
     }
     spin_unlock(&nfsi->vfs_inode.i_lock);
 }
+EXPORT_SYMBOL_GPL(pnfs_need_layoutcommit);
 
 /* Update last_write_offset for layoutcommit.
  * TODO: We should only use commited extents, but the current nfs

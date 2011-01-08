@@ -3059,15 +3059,15 @@ static int nfs4_xdr_enc_dscommit(struct rpc_rqst *req, uint32_t *p,
  * an RINTEGRITY request
  */
 static void encode_rintegrity(struct xdr_stream *xdr,
-                              const struct nfs41_rintegrity_args *args,
+                              const struct nfs41_rintegrity_arg *args,
                               struct compound_hdr *hdr)
 {
 	__be32 *p;
 
 	p = reserve_space(xdr, 4);
 	*p++ = cpu_to_be32(OP_RINTEGRITY);
-	xdr_encode_opaque(p, args->fh->data, args->fh->size);
-	p = xdr_encode_opaque_fixed(p, &args->stateid->data,
+	xdr_encode_opaque(p, &args->fh.data, args->fh.size);
+	p = xdr_encode_opaque_fixed(p, &args->stateid.data,
                                     NFS4_STATEID_SIZE);
 	hdr->nops++;
 	hdr->replen += decode_rintegrity_maxsz;
@@ -3077,7 +3077,7 @@ static void encode_rintegrity(struct xdr_stream *xdr,
  * Encode a Data Server RINTEGRITY request
  */
 static int nfs4_xdr_enc_rintegrity(struct rpc_rqst *req, uint32_t *p,
-                                   struct nfs41_rintegrity_args *args)
+                                   struct nfs41_rintegrity_arg *args)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {

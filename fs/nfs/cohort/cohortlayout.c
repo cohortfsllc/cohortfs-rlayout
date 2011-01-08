@@ -320,7 +320,6 @@ static inline void
 cohort_rpl_updatedata_create(struct nfs4_createdata *data)
 {
     data->arg.crt_fh = data->res.fh;
-    memset(&data->res, 0, sizeof(struct nfs4_create_res));
 }
 
 static int

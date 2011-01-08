@@ -353,6 +353,17 @@ static int nfs4_stat_to_errno(int);
 				   *the moment */)
 #define decode_layoutreturn_maxsz (op_decode_hdr_maxsz + \
 				1 + decode_stateid_maxsz)
+
+#if defined(CONFIG_PNFS_COHORT)
+
+#define encode_rintegrity_maxsz (op_encode_hdr_maxsz + \
+                                 1 + (NFS4_FHSIZE >> 2) + \
+                                 encode_stateid_maxsz)
+#define decode_rintegrity_maxsz (op_decode_hdr_maxsz + \
+                                 1 + 1024)
+
+#endif /* CONFIG_PNFS_COHORT */
+
 #else /* CONFIG_NFS_V4_1 */
 #define encode_sequence_maxsz	0
 #define decode_sequence_maxsz	0
@@ -796,7 +807,15 @@ static int nfs4_stat_to_errno(int);
 #define NFS4_dec_dscommit_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
 				decode_commit_maxsz)
+#if defined(CONFIG_PNFS_COHORT)
+#define NFS4_enc_rintegrity_sz	(compound_encode_hdr_maxsz + \
+                                encode_sequence_maxsz + \
+				encode_rintegrity_maxsz)
 
+#define NFS4_dec_rintegrity_sz	(compound_decode_hdr_maxsz + \
+                                decode_sequence_maxsz + \
+				decode_rintegrity_maxsz)
+#endif /* CONFIG_PNFS_COHORT */
 const u32 nfs41_maxwrite_overhead = ((RPC_MAX_HEADER_WITH_AUTH +
 				      compound_encode_hdr_maxsz +
 				      encode_sequence_maxsz +
@@ -3034,6 +3053,47 @@ static int nfs4_xdr_enc_dscommit(struct rpc_rqst *req, uint32_t *p,
 	encode_nops(&hdr);
 	return 0;
 }
+
+#if defined(CONFIG_PNFS_COHORT)
+/*
+ * an RINTEGRITY request
+ */
+static void encode_rintegrity(struct xdr_stream *xdr,
+                              const struct nfs41_rintegrity_args *args,
+                              struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	p = reserve_space(xdr, 4);
+	*p++ = cpu_to_be32(OP_RINTEGRITY);
+	xdr_encode_opaque(p, args->fh->data, args->fh->size);
+	p = xdr_encode_opaque_fixed(p, &args->stateid->data,
+                                    NFS4_STATEID_SIZE);
+	hdr->nops++;
+	hdr->replen += decode_rintegrity_maxsz;
+}
+
+/*
+ * Encode a Data Server RINTEGRITY request
+ */
+static int nfs4_xdr_enc_rintegrity(struct rpc_rqst *req, uint32_t *p,
+                                   struct nfs41_rintegrity_args *args)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr = {
+		.minorversion = args->client->cl_mvops->minor_version,
+	};
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_sequence(&xdr, &args->seq_args, &hdr);
+	encode_rintegrity(&xdr, args, &hdr);
+	encode_nops(&hdr);
+
+	return 0;
+}
+#endif /* CONFIG_PNFS_COHORT */
+
 #endif /* CONFIG_NFS_V4_1 */
 
 static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
@@ -6813,6 +6873,43 @@ static int nfs4_xdr_dec_dscommit(struct rpc_rqst *rqstp, uint32_t *p,
 out:
 	return status;
 }
+
+#if defined(CONFIG_PNFS_COHORT)
+/*
+ * A signed integrity block.
+ */
+static int decode_signed_integrity(struct xdr_stream *xdr,
+                                   struct nfs41_rintegrity_res *res)
+{
+        int status;
+        struct cohort_signed_integrity4 *si = res->si;
+        status = decode_opaque_inline(xdr, &si->len, (char **) &si->data);
+        return status;
+}
+
+/*
+ * Decode RINTEGRITY response
+ */
+static int nfs4_xdr_dec_rintegrity(struct rpc_rqst *rqstp, uint32_t *p,
+                                   struct nfs41_rintegrity_res *res)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (status)
+		goto out;
+	status = decode_sequence(&xdr, &res->seq_res, rqstp);
+	if (status)
+		goto out;
+        status = decode_signed_integrity(&xdr, res);
+out:
+	return status;
+}
+#endif /* CONFIG_PNFS_COHORT */
+
 #endif /* CONFIG_NFS_V4_1 */
 
 __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
@@ -7015,6 +7112,9 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(LAYOUTRETURN, enc_layoutreturn,  dec_layoutreturn),
   PROC(PNFS_WRITE, enc_dswrite,  dec_dswrite),
   PROC(PNFS_COMMIT, enc_dscommit,  dec_dscommit),
+#if defined(CONFIG_PNFS_COHORT)
+  PROC(RINTEGRITY, enc_rintegrity,  dec_rintegrity),
+#endif /* CONFIG_PNFS_COHORT */
 #endif /* CONFIG_NFS_V4_1 */
 };
 

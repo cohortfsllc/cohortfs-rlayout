@@ -78,19 +78,24 @@ find_pnfs_driver(u32 id)
 void
 pnfs_need_layoutcommit(struct nfs_inode *nfsi, struct nfs_open_context *ctx)
 {
-	dprintk("%s: has_layout=%d ctx=%p\n", __func__, has_layout(nfsi), ctx);
-	spin_lock(&nfsi->vfs_inode.i_lock);
-	if (has_layout(nfsi) &&
-	    !test_bit(NFS_LAYOUT_NEED_LCOMMIT, &nfsi->layout->plh_flags)) {
-		nfsi->layout->cred = get_rpccred(ctx->state->owner->so_cred);
-		__set_bit(NFS_LAYOUT_NEED_LCOMMIT,
-			  &nfsi->layout->plh_flags);
-		nfsi->change_attr++;
-		spin_unlock(&nfsi->vfs_inode.i_lock);
-		dprintk("%s: Set layoutcommit\n", __func__);
-		return;
-	}
-	spin_unlock(&nfsi->vfs_inode.i_lock);
+    dprintk("%s: has_layout=%d ctx=%p\n", __func__, has_layout(nfsi), ctx);
+    spin_lock(&nfsi->vfs_inode.i_lock);
+    if (has_layout(nfsi) &&
+        !test_bit(NFS_LAYOUT_NEED_LCOMMIT, &nfsi->layout->plh_flags)) {
+	/* XXX Cohort.  Current nfs4_state handling seems to need further
+	 * generalization.  For now, Cohort metadata callers will pass NULL for
+	 * arg ctx and we'll check for NULL here. */
+	if (ctx) {
+            nfsi->layout->cred =
+                get_rpccred(ctx->state->owner->so_cred);
+        }
+        __set_bit(NFS_LAYOUT_NEED_LCOMMIT, &nfsi->layout->plh_flags);
+        nfsi->change_attr++;
+        spin_unlock(&nfsi->vfs_inode.i_lock);
+        dprintk("%s: Set layoutcommit\n", __func__);
+        return;
+    }
+    spin_unlock(&nfsi->vfs_inode.i_lock);
 }
 
 /* Update last_write_offset for layoutcommit.
@@ -698,7 +703,12 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 {
 	int status = 0;
 
+	/* XXX Cohort.  Current nfs4_state handling seems to need further
+	 * generalization.  For now, Cohort metadata callers will pass NULL for
+	 * arg open_state and we'll check for NULL here. */
+
 	dprintk("--> %s\n", __func__);
+
 	spin_lock(&lo->inode->i_lock);
 	if (lo->plh_block_lgets ||
 	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
@@ -706,7 +716,7 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 		 * some callers.
 		 */
 		status = -NFS4ERR_LAYOUTTRYLATER;
-	} else if (list_empty(&lo->segs)) {
+	} else if (open_state && list_empty(&lo->segs)) {
 		int seq;
 
 		do {
@@ -717,6 +727,7 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 	} else
 		memcpy(dst->data, lo->stateid.data, sizeof(lo->stateid.data));
 	spin_unlock(&lo->inode->i_lock);
+
 	dprintk("<-- %s\n", __func__);
 	return status;
 }

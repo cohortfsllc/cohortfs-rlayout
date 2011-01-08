@@ -178,10 +178,10 @@ cohort_rpl_commit(struct nfs_write_data *data, int sync)
     return PNFS_ATTEMPTED;
 }
 
-static enum pnfs_try_status
+static int
 cohort_rpl_metadata_commit(struct nfs_server *server, int sync)
 {
-    return PNFS_ATTEMPTED;
+    return (0);
 }
 
 /*
@@ -419,6 +419,8 @@ int cohort_rpl_open(struct nfs_server *server, struct inode *d_ino,
                     struct nfs4_opendata *opendata)
 {
     int code = 0;
+
+    dprintk("--> %s\n", __func__);
 
     return (code);
 }

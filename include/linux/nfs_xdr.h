@@ -1083,23 +1083,40 @@ struct nfs41_reclaim_complete_res {
 	struct nfs4_sequence_res	seq_res;
 };
 
-/* Cohort data structures */
+#if defined(CONFIG_PNFS_COHORT)
+
 struct cohort_signed_integrity4 {
-        char data[NFS4_OPAQUE_LIMIT];
+	int len;
+	char data[NFS4_OPAQUE_LIMIT];
 };
 
 struct cohort_replication_layout4 {
-        struct nfs4_deviceid crl_deviceid;
-        struct nfs_fh crl_fh;
+	struct nfs_fh crl_fh;
+	struct nfs4_deviceid crl_deviceid;
 };
 
 struct cohort_replication_layout_ds_addr4 {
-        struct pnfs_device *crlda_multipath_rs;
+	struct pnfs_device *crlda_multipath_rs;
 };
 
 struct cohort_replication_layoutupdate4 {
-        struct cohort_signed_integrity4 **crlou_si_list;
+	int len;
+	struct cohort_signed_integrity4 **si_list;
 };
+
+struct nfs41_rintegrity_args {
+	struct nfs_fh *fh;
+	nfs4_stateid *stateid;
+	struct nfs_client *client;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs41_rintegrity_res {
+	struct cohort_signed_integrity4 *si;
+	struct nfs4_sequence_res seq_res;
+};
+
+#endif /* CONFIG_PNFS_COHORT */
 
 #endif /* CONFIG_NFS_V4_1 */
 

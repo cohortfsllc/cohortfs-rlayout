@@ -2010,7 +2010,7 @@ encode_layoutcommit(struct xdr_stream *xdr,
 		ld = server->pnfs_curr_ld;
 	}
 
-	dprintk("%s: class %d type: %d %llu@%llu lbw: %llu\n", __func__,
+	dprintk("%s: class %d type: 0x%x %llu@%llu lbw: %llu\n", __func__,
 		class,
 		args->layout_type,
 		args->range.length, args->range.offset, args->lastbytewritten);

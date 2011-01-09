@@ -5682,7 +5682,7 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int issync)
 	int status = 0;
 
 	dprintk("--> %s pid %4d %llu@%llu lbw: %llu "
-		"type: %d issync %d\n",
+		"type: 0x%x issync %d\n",
                 __func__,
 		data->task.tk_pid,
 		data->args.range.length,

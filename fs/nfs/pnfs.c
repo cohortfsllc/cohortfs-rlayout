@@ -875,7 +875,7 @@ out:
 /* Initiates a LAYOUTRETURN(FILE) */
 int
 _pnfs_return_layout(struct inode *ino, struct pnfs_layout_range *range,
-		    bool wait)
+                    bool wait)
 {
 	struct pnfs_layout_hdr *lo = NULL;
 	struct nfs_inode *nfsi = NFS_I(ino);
@@ -916,6 +916,24 @@ out:
 	dprintk("<-- %s status: %d\n", __func__, status);
 	return status;
 }
+
+int pnfs_return_layout(struct inode *ino,
+                       struct pnfs_layout_range *range,
+                       bool wait)
+{
+	struct nfs_inode *nfsi = NFS_I(ino);
+	struct nfs_server *nfss = NFS_SERVER(ino);
+
+        dprintk("--> %s (%d %d)\n", __func__,
+                pnfs_enabled_sb(nfss),
+                has_layout(nfsi));
+
+	if (pnfs_enabled_sb(nfss) && has_layout(nfsi))
+		return _pnfs_return_layout(ino, range, wait);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnfs_return_layout);
 
 /*
  * Compare two layout segments for sorting into layout cache.
@@ -1687,38 +1705,56 @@ void pnfs_cleanup_layoutcommit(struct inode *ino,
  * XXXX TODO Fixme for metadata!
  */
 static int
-pnfs_setup_layoutcommit(struct inode *inode,
+pnfs_setup_layoutcommit(struct inode *ino,
 			struct nfs4_layoutcommit_data *data,
 			loff_t write_begin_pos, loff_t write_end_pos)
 {
-	struct nfs_server *nfss = NFS_SERVER(inode);
+	struct nfs_server *nfss = NFS_SERVER(ino);
+	struct pnfs_layoutdriver_type *ld;
 	int result = 0;
+	__u32 class;
 
 	dprintk("--> %s\n", __func__);
 
-	data->args.inode = inode;
-	data->args.fh = NFS_FH(inode);
-	data->args.layout_type = nfss->pnfs_curr_ld->id;
-	data->res.fattr = &data->fattr;
-	nfs_fattr_init(&data->fattr);
+        /* XXX need data union &c? */
+ 
+	ld = NULL;
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
 
-	/* TODO: Need to determine the correct values */
-	data->args.time_modify_changed = 0;
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = NFS_SERVER(ino)->pnfs_meta_ld;
+		break;
+	default:
+		/* pnfs layouts */
+		ld = NFS_SERVER(ino)->pnfs_curr_ld;
 
-	/* Set values from inode so it can be reset
-	 */
-	data->args.range.iomode = IOMODE_RW;
-	data->args.range.offset = write_begin_pos;
-	data->args.range.length = write_end_pos - write_begin_pos + 1;
-	data->args.lastbytewritten =  min(write_end_pos,
-					  i_size_read(inode) - 1);
-	data->args.bitmask = nfss->attr_bitmask;
+                data->res.fattr = &data->fattr;
+                nfs_fattr_init(&data->fattr);
+
+		/* TODO: Need to determine the correct values */
+		data->args.time_modify_changed = 0;
+
+		/* Set values from inode so it can be reset */
+		data->args.range.iomode = IOMODE_RW;
+		data->args.range.offset = write_begin_pos;
+		data->args.range.length = write_end_pos - write_begin_pos + 1;
+		data->args.lastbytewritten =  min(write_end_pos,
+					  i_size_read(ino) - 1);
+		data->args.bitmask = nfss->attr_bitmask;
+	}
+
+	data->args.inode = ino;
+	data->args.fh = NFS_FH(ino);
+	data->args.layout_type = ld->id;
 	data->res.server = nfss;
 
 	/* Call layout driver to set the arguments */
-	if (nfss->pnfs_curr_ld->setup_layoutcommit)
-		result = nfss->pnfs_curr_ld->setup_layoutcommit(
-				NFS_I(inode)->layout, &data->args);
+	if (ld->setup_layoutcommit)
+		result = ld->setup_layoutcommit(NFS_I(ino)->layout,
+                                                &data->args);
 
 	dprintk("<-- %s Status %d\n", __func__, result);
 	return result;
@@ -1773,7 +1809,8 @@ pnfs_layoutcommit_inode(struct inode *inode, int sync)
 					 write_end_pos);
 	if (status) {
 		/* The layout driver failed to setup the layoutcommit */
-		put_rpccred(data->cred);
+		if (data->cred)
+			put_rpccred(data->cred);
 		put_layout_hdr(NFS_I(inode)->layout);
 		goto out_free;
 	}

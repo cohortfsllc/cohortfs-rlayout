@@ -138,6 +138,7 @@ cohort_rpl_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 	int rc;
 
 	dprintk("--> %s\n", __func__);
+
 	rpl = kzalloc(sizeof(struct cohort_replication_layout_segment),
                       GFP_KERNEL);
 	if (!rpl)
@@ -175,9 +176,14 @@ cohort_rpl_write_pagelist(struct nfs_write_data *data, unsigned nr_pages,
 static enum pnfs_try_status
 cohort_rpl_commit(struct nfs_write_data *data, int sync)
 {
+    dprintk("--> %s\n", __func__);
+
+    /* XXX Finish */
+
     return PNFS_ATTEMPTED;
 }
 
+/* XXX pretty sure NOT NEEDED */
 static int
 cohort_rpl_metadata_commit(struct nfs_server *server, int sync)
 {

@@ -183,6 +183,7 @@ cohort_rpl_return_layouts(struct super_block *sb)
     struct pnfs_layout_segment *lseg = NULL;
     struct nfs_server *server = NFS_SERVER_SB(sb);
     struct inode *s_ino = server->s_ino;
+    int code;
 
     dprintk("--> %s\n", __func__);
 
@@ -195,8 +196,17 @@ cohort_rpl_return_layouts(struct super_block *sb)
         (server->pnfs_meta_ld->id != LAYOUT4_COHORT_REPLICATION))
         goto out;
 
+    /* Return layout, commit if appropriate */
+    range.iomode = IOMODE_RW;
+    range.offset = 0ULL;
+    range.length = NFS4_MAX_UINT64;
+
+    code = pnfs_return_layout(s_ino, &range, true);
+
+#if 0
     /* XXX Should we try to commit anythig outstanding?  Should
      * our caller have done so? */
+    _pnfs_return_layout(rdata->inode, &range, true);
 
     /* Find and ref layout for d_ino, if possible */
     spin_lock(&s_ino->i_lock);
@@ -216,6 +226,8 @@ cohort_rpl_return_layouts(struct super_block *sb)
     }
 
     spin_unlock(&s_ino->i_lock);
+#endif
+
 out:
     return;
 }

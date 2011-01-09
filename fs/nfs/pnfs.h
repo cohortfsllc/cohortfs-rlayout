@@ -345,6 +345,8 @@ int _pnfs_write_begin(struct inode *inode, struct page *page,
 		      loff_t pos, unsigned len,
 		      struct pnfs_layout_segment *lseg,
 		      struct pnfs_fsdata **fsdata);
+extern int pnfs_return_layout(struct inode *ino,
+                              struct pnfs_layout_range *range, bool wait);
 
 static inline bool
 has_layout(struct nfs_inode *nfsi)
@@ -361,7 +363,7 @@ static inline int lo_fail_bit(u32 iomode)
 /* Return true if a layout driver is being used for this mountpoint */
 static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 {
-	return nfss->pnfs_curr_ld != NULL;
+	return (nfss->pnfs_curr_ld || nfss->pnfs_meta_ld);
 }
 
 static inline int pnfs_grow_ok(struct pnfs_layout_segment *lseg,
@@ -377,13 +379,15 @@ pnfs_ld_layoutret_on_setattr(struct inode *inode)
 {
 	if (!pnfs_enabled_sb(NFS_SERVER(inode)))
 		return false;
-	return NFS_SERVER(inode)->pnfs_curr_ld->flags &
-		PNFS_LAYOUTRET_ON_SETATTR;
+	return (NFS_SERVER(inode)->pnfs_curr_ld &&
+                (NFS_SERVER(inode)->pnfs_curr_ld->flags & 
+                 PNFS_LAYOUTRET_ON_SETATTR));
 }
 
 static inline bool pnfs_use_rpc(struct nfs_server *nfss)
 {
 	if (pnfs_enabled_sb(nfss))
+            if (nfss->pnfs_curr_ld)
 		return nfss->pnfs_curr_ld->flags & PNFS_USE_RPC_CODE;
 
 	return true;
@@ -438,19 +442,6 @@ static inline void pnfs_write_end_cleanup(struct file *filp, void *fsdata)
 		if (nfss->pnfs_curr_ld->write_begin)
 			pnfs_free_fsdata(fsdata);
 	}
-}
-
-static inline int pnfs_return_layout(struct inode *ino,
-				     struct pnfs_layout_range *range,
-				     bool wait)
-{
-	struct nfs_inode *nfsi = NFS_I(ino);
-	struct nfs_server *nfss = NFS_SERVER(ino);
-
-	if (pnfs_enabled_sb(nfss) && has_layout(nfsi))
-		return _pnfs_return_layout(ino, range, wait);
-
-	return 0;
 }
 
 static inline bool

@@ -1745,13 +1745,13 @@ pnfs_setup_layoutcommit(struct inode *ino,
 		data->args.range.length = write_end_pos - write_begin_pos + 1;
 		data->args.lastbytewritten =  min(write_end_pos,
 					  i_size_read(ino) - 1);
-		data->args.bitmask = nfss->attr_bitmask;
 	}
 
 	data->args.inode = ino;
 	data->args.fh = NFS_FH(ino);
 	data->args.layout_type = ld->id;
 	data->res.server = nfss;
+	data->args.bitmask = nfss->attr_bitmask;
 
 	/* Call layout driver to set the arguments */
 	if (ld->setup_layoutcommit)

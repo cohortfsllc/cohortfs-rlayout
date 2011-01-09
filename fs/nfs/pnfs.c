@@ -430,6 +430,9 @@ _put_lseg_common(struct pnfs_layout_segment *lseg)
 		if (!pnfs_layoutgets_blocked(lseg->layout, NULL))
 			rpc_wake_up(&NFS_I(ino)->lo_rpcwaitq_stateid);
 	}
+        /* XXX why only here, when layoutcommit waits for this wake up */
+        dprintk("%s rpc_wake_up %p (lo_waitq)\n", __func__,
+                NFS_I(ino));
 	rpc_wake_up(&NFS_I(ino)->lo_rpcwaitq);
 }
 
@@ -1694,11 +1697,17 @@ void pnfs_cleanup_layoutcommit(struct inode *ino,
 		ld = NFS_SERVER(ino)->pnfs_curr_ld;
 	}
 
-	/* TODO: Maybe we should avoid this by allowing the layout driver
-	* to directly xdr its layout on the wire.
-	*/
 	if (ld->cleanup_layoutcommit)
 		ld->cleanup_layoutcommit(NFS_I(ino)->layout, data);
+#if 0 /* XXX 
+       * Attempting to deal with mpnfs1's inability to deal with actual
+       * replication layoutcommit (ie, hang at layoutreturn barrier).
+       * Clearly, we should not try forever on that op, so this may or
+       * may not be visibly useful when that's fixed.
+       * VERIFY (when mpnfs1 doesn't lock up) */
+        /* XXX One way or another, wake up waiter(s). */
+	rpc_wake_up(&NFS_I(ino)->lo_rpcwaitq);
+#endif
 }
 
 /*

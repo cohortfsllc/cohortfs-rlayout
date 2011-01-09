@@ -5716,7 +5716,8 @@ nfs4_layoutreturn_prepare(struct rpc_task *task, void *calldata)
 		struct nfs_inode *nfsi = NFS_I(lrp->args.inode);
 
 		if (pnfs_return_layout_barrier(nfsi, &lrp->args.range)) {
-			dprintk("%s: waiting on barrier\n", __func__);
+			dprintk("%s: waiting on barrier %p (lo_rpcwaitq)\n",
+                                __func__, nfsi);
 			rpc_sleep_on(&nfsi->lo_rpcwaitq, task, NULL);
 			return;
 		}

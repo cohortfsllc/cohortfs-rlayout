@@ -1639,6 +1639,8 @@ pnfs_commit_done(struct nfs_write_data *data)
 }
 EXPORT_SYMBOL_GPL(pnfs_commit_done);
 
+/* XXX This routine is currently data only (i.e., will not be called
+ * for metadata layouts. */
 enum pnfs_try_status
 pnfs_try_to_commit(struct nfs_write_data *data,
 		    const struct rpc_call_ops *call_ops, int sync)
@@ -1779,12 +1781,14 @@ pnfs_layoutcommit_inode(struct inode *inode, int sync)
 	data = kzalloc(sizeof(*data), GFP_NOFS);
 	if (!data)
 		return -ENOMEM;
+        dprintk("%s 1\n", __func__);
 
 	spin_lock(&inode->i_lock);
 	if (!layoutcommit_needed(nfsi)) {
 		spin_unlock(&inode->i_lock);
 		goto out_free;
 	}
+        dprintk("%s 2\n", __func__);
 
 	/* Clear layoutcommit properties in the inode so
 	 * new lc info can be generated
@@ -1798,23 +1802,31 @@ pnfs_layoutcommit_inode(struct inode *inode, int sync)
 	__clear_bit(NFS_LAYOUT_NEED_LCOMMIT, &nfsi->layout->plh_flags);
 	memcpy(data->args.stateid.data, nfsi->layout->stateid.data,
 	       NFS4_STATEID_SIZE);
+        dprintk("%s 3\n", __func__);
 
 	/* Reference for layoutcommit matched in pnfs_layoutcommit_release */
 	get_layout_hdr(NFS_I(inode)->layout);
 
 	spin_unlock(&inode->i_lock);
+        dprintk("%s 4\n", __func__);
 
 	/* Set up layout commit args */
 	status = pnfs_setup_layoutcommit(inode, data, write_begin_pos,
 					 write_end_pos);
+        dprintk("%s 5\n", __func__);
+
 	if (status) {
+            dprintk("%s 6\n", __func__);
 		/* The layout driver failed to setup the layoutcommit */
 		if (data->cred)
 			put_rpccred(data->cred);
 		put_layout_hdr(NFS_I(inode)->layout);
 		goto out_free;
 	}
+        dprintk("%s 7\n", __func__);
+
 	status = nfs4_proc_layoutcommit(data, sync);
+        dprintk("%s 8\n", __func__);
 out:
 	dprintk("%s end (err:%d)\n", __func__, status);
 	return status;

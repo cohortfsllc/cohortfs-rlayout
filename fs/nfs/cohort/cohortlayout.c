@@ -183,13 +183,6 @@ cohort_rpl_commit(struct nfs_write_data *data, int sync)
     return PNFS_ATTEMPTED;
 }
 
-/* XXX pretty sure NOT NEEDED */
-static int
-cohort_rpl_metadata_commit(struct nfs_server *server, int sync)
-{
-    return (0);
-}
-
 /*
  * Generic preamble for Cohort replication operations.
  *
@@ -331,7 +324,7 @@ struct cohort_rintegrity_data {
 };
 
 static struct cohort_rintegrity_data *
-cohort_alloc_rintegrity_data()
+cohort_alloc_rintegrity_data(void)
 {
     struct cohort_rintegrity_data *data;
 
@@ -466,6 +459,74 @@ int cohort_rpl_open(struct nfs_server *server, struct inode *d_ino,
     return (code);
 }
 
+/* Allocate and install Cohort replication layout commit data (an
+ * array of the signed integrity data from the replication servers in
+ * this layout, in layout order). */
+static int 
+cohort_rpl_setup_layoutcommit(struct pnfs_layout_hdr *lo,
+                              struct nfs4_layoutcommit_args *args)
+{
+#if 0
+    struct nfs_server *nfss = NFS_SERVER(lo->inode);
+#endif
+    struct cohort_replication_layoutupdate4 *lou_data;
+
+    dprintk("%s enter\n", __func__);
+
+    lou_data = kmalloc(sizeof(struct cohort_replication_layoutupdate4),
+                       GFP_KERNEL);
+    if (unlikely(! lou_data))
+        return -ENOMEM;
+
+    /* XXX ok, to do this for real, we now need to:
+     * 1. work out the ds list
+     * 2. allocate an array value for lou_data->si_list
+     * 3. set lou_data->len to len(ds list)
+     */
+    lou_data->len = 0; /* XXX no ops to remind us to Finish */
+    lou_data->si_list = NULL;
+
+    args->layoutdriver_data = lou_data;
+        
+    return (0);
+}
+
+/* Encode the layoutupdate data on xdr */
+static void
+cohort_rpl_encode_layoutcommit(struct pnfs_layout_hdr *lo,
+                               struct xdr_stream *xdr,
+                               const struct nfs4_layoutcommit_args *args)
+{
+    dprintk("--> %s\n", __func__);
+    return;
+}
+
+static void
+cohort_rpl_cleanup_layoutcommit(struct pnfs_layout_hdr *layoutid,
+                                struct nfs4_layoutcommit_data *data)
+{
+    struct cohort_replication_layoutupdate4 *lou_data;
+
+    dprintk("--> %s\n", __func__);
+
+    lou_data = data->args.layoutdriver_data;
+    if (lou_data->len > 0)
+        kfree(lou_data->si_list);
+    kfree(lou_data);
+
+    return;
+}
+
+/* XXX Needed? */
+static void
+cohort_rpl_encode_layoutreturn(struct pnfs_layout_hdr *lo,
+                               struct xdr_stream *xdr,
+                               const struct nfs4_layoutreturn_args *args)
+{
+    dprintk("--> %s\n", __func__);
+    return;
+}
+
 static struct pnfs_layoutdriver_type cohort_replication_layout = {
 	.id = LAYOUT4_COHORT_REPLICATION,
 	.name = "LAYOUT4_COHORT_REPLICATION",
@@ -479,11 +540,13 @@ static struct pnfs_layoutdriver_type cohort_replication_layout = {
 	.read_pagelist           = cohort_rpl_read_pagelist,
 	.write_pagelist          = cohort_rpl_write_pagelist,
 	.commit                  = cohort_rpl_commit,
-	.metadata_commit         = cohort_rpl_metadata_commit,
+	.setup_layoutcommit      = cohort_rpl_setup_layoutcommit,
+	.encode_layoutcommit     = cohort_rpl_encode_layoutcommit,
+	.cleanup_layoutcommit    = cohort_rpl_cleanup_layoutcommit,
+	.encode_layoutreturn     = cohort_rpl_encode_layoutreturn,
 	.create                  = cohort_rpl_create,
 	.remove                  = cohort_rpl_remove,
         .open                    = cohort_rpl_open,
-	/* XXX finish! */
 };
 
 static

@@ -5613,6 +5613,8 @@ static void nfs4_layoutcommit_prepare(struct rpc_task *task, void *data)
 		(struct nfs4_layoutcommit_data *)data;
 	struct nfs_server *server = NFS_SERVER(ldata->args.inode);
 
+        dprintk("--> %s\n", __func__);
+
 	if (nfs4_setup_sequence(server, NULL, &ldata->args.seq_args,
 				&ldata->res.seq_res, 1, task))
 		return;
@@ -5627,6 +5629,8 @@ nfs4_layoutcommit_done(struct rpc_task *task, void *calldata)
 		(struct nfs4_layoutcommit_data *)calldata;
 	struct nfs_server *server = NFS_SERVER(data->args.inode);
 
+        dprintk("--> %s\n", __func__);
+
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return;
 
@@ -5639,10 +5643,12 @@ static void nfs4_layoutcommit_release(void *lcdata)
 	struct nfs4_layoutcommit_data *data =
 		(struct nfs4_layoutcommit_data *)lcdata;
 
+        dprintk("--> %s\n", __func__);
+
 	pnfs_cleanup_layoutcommit(data->args.inode, data);
 	/* Matched by get_layout in pnfs_layoutcommit_inode */
 	put_layout_hdr(NFS_I(data->args.inode)->layout);
-	put_rpccred(data->cred);
+	put_rpccred(data->cred); /* XXX */
 	kfree(lcdata);
 }
 
@@ -5673,6 +5679,8 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int issync)
 	struct rpc_task *task;
 	int status = 0;
 
+        dprintk("--> %s\n", __func__);
+
 	dprintk("NFS: %4d initiating layoutcommit call. %llu@%llu lbw: %llu "
 		"type: %d issync %d\n",
 		data->task.tk_pid,
@@ -5681,18 +5689,21 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int issync)
 		data->args.lastbytewritten,
 		data->args.layout_type, issync);
 
+        dprintk("--> %s 2\n", __func__);
+
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	if (!issync)
-		goto out;
+		goto out_put;
 	status = nfs4_wait_for_completion_rpc_task(task);
 	if (status != 0)
-		goto out;
+		goto out_put;
 	status = task->tk_status;
+out_put:
+	rpc_put_task(task);
 out:
 	dprintk("%s: status %d\n", __func__, status);
-	rpc_put_task(task);
 	return status;
 }
 

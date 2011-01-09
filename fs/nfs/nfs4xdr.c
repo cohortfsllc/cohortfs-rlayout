@@ -1985,17 +1985,35 @@ encode_layoutget(struct xdr_stream *xdr,
 	return 0;
 }
 
-static int
+/* static */ int
 encode_layoutcommit(struct xdr_stream *xdr,
-		    struct inode *inode,
+		    struct inode *ino,
 		    const struct nfs4_layoutcommit_args *args,
 		    struct compound_hdr *hdr)
 {
+	struct pnfs_layoutdriver_type *ld = NULL;
+	struct nfs_server *server;
+	__u32 class;
 	__be32 *p;
 
-	dprintk("%s: %llu@%llu lbw: %llu type: %d\n", __func__,
-		args->range.length, args->range.offset, args->lastbytewritten,
-		args->layout_type);
+	server = NFS_SERVER(ino);
+
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = server->pnfs_meta_ld;
+		break;
+	default:
+		ld = server->pnfs_curr_ld;
+	}
+
+	dprintk("%s: class %d type: %d %llu@%llu lbw: %llu\n", __func__,
+		class,
+		args->layout_type,
+		args->range.length, args->range.offset, args->lastbytewritten);
 
 	p = reserve_space(xdr, 40 + NFS4_STATEID_SIZE);
 	*p++ = cpu_to_be32(OP_LAYOUTCOMMIT);
@@ -2016,9 +2034,8 @@ encode_layoutcommit(struct xdr_stream *xdr,
 	p = reserve_space(xdr, 4);
 	*p = cpu_to_be32(args->layout_type);
 
-	if (NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit) {
-		NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit(
-			NFS_I(inode)->layout, xdr, args);
+	if (ld->encode_layoutcommit) {
+		ld->encode_layoutcommit(NFS_I(ino)->layout, xdr, args);
 	} else {
 		p = reserve_space(xdr, 4);
 		xdr_encode_opaque(p, NULL, 0);
@@ -2026,16 +2043,36 @@ encode_layoutcommit(struct xdr_stream *xdr,
 
 	hdr->nops++;
 	hdr->replen += decode_layoutcommit_maxsz;
+
 	return 0;
 }
 
-static void
+/* static */ void
 encode_layoutreturn(struct xdr_stream *xdr,
 		    const struct nfs4_layoutreturn_args *args,
 		    struct compound_hdr *hdr)
 {
+	struct pnfs_layoutdriver_type *ld = NULL;
+	struct nfs_server *server;
+        struct inode *ino;
 	nfs4_stateid stateid;
+	__u32 class;
 	__be32 *p;
+
+        ino = args->inode;
+	server = NFS_SERVER(ino);
+
+	class = S_ISDIR(ino->i_mode) ?
+		SET_PNFS_LAYOUTDRIVER_FLAG_METADATA :
+		SET_PNFS_LAYOUTDRIVER_FLAG_DATA;
+
+	switch (class) {
+	case SET_PNFS_LAYOUTDRIVER_FLAG_METADATA:
+		ld = server->pnfs_meta_ld;
+		break;
+	default:
+		ld = server->pnfs_curr_ld;
+	}
 
 	p = reserve_space(xdr, 20);
 	*p++ = cpu_to_be32(OP_LAYOUTRETURN);
@@ -2047,15 +2084,15 @@ encode_layoutreturn(struct xdr_stream *xdr,
 		p = reserve_space(xdr, 16 + NFS4_STATEID_SIZE);
 		p = xdr_encode_hyper(p, args->range.offset);
 		p = xdr_encode_hyper(p, args->range.length);
-		spin_lock(&args->inode->i_lock);
-		memcpy(stateid.data, NFS_I(args->inode)->layout->stateid.data,
+		spin_lock(&ino->i_lock);
+		memcpy(stateid.data, NFS_I(ino)->layout->stateid.data,
 		       NFS4_STATEID_SIZE);
-		spin_unlock(&args->inode->i_lock);
+		spin_unlock(&ino->i_lock);
 		p = xdr_encode_opaque_fixed(p, &stateid.data,
 					    NFS4_STATEID_SIZE);
-		if (NFS_SERVER(args->inode)->pnfs_curr_ld->encode_layoutreturn) {
-			NFS_SERVER(args->inode)->pnfs_curr_ld->encode_layoutreturn(
-				NFS_I(args->inode)->layout, xdr, args);
+		if (ld->encode_layoutreturn) {
+			ld->encode_layoutreturn(
+				NFS_I(ino)->layout, xdr, args);
 		} else {
 			p = reserve_space(xdr, 4);
 			*p = cpu_to_be32(0);

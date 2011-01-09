@@ -261,7 +261,7 @@ enum nfs_opnum4 {
 	OP_DESTROY_CLIENTID = 57,
 	OP_RECLAIM_COMPLETE = 58,
         /* Cohort */
-        OP_RINTEGRITY = 76,
+        OP_RINTEGRITY = 59, /* array without placeholder slots, so use next */
 
 	OP_ILLEGAL = 10044,
 };

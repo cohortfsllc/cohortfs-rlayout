@@ -5648,7 +5648,9 @@ static void nfs4_layoutcommit_release(void *lcdata)
 	pnfs_cleanup_layoutcommit(data->args.inode, data);
 	/* Matched by get_layout in pnfs_layoutcommit_inode */
 	put_layout_hdr(NFS_I(data->args.inode)->layout);
-	put_rpccred(data->cred); /* XXX */
+        /* XXX Cohort */
+        if (data->cred)
+                put_rpccred(data->cred);
 	kfree(lcdata);
 }
 
@@ -5679,17 +5681,15 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int issync)
 	struct rpc_task *task;
 	int status = 0;
 
-        dprintk("--> %s\n", __func__);
-
-	dprintk("NFS: %4d initiating layoutcommit call. %llu@%llu lbw: %llu "
+	dprintk("--> %s pid %4d %llu@%llu lbw: %llu "
 		"type: %d issync %d\n",
+                __func__,
 		data->task.tk_pid,
 		data->args.range.length,
 		data->args.range.offset,
 		data->args.lastbytewritten,
-		data->args.layout_type, issync);
-
-        dprintk("--> %s 2\n", __func__);
+		data->args.layout_type,
+                issync);
 
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
@@ -5702,7 +5702,6 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int issync)
 	status = task->tk_status;
 out_put:
 	rpc_put_task(task);
-out:
 	dprintk("%s: status %d\n", __func__, status);
 	return status;
 }

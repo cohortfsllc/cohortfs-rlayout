@@ -452,12 +452,55 @@ out_postamble:
 }
 
 int cohort_rpl_open(struct nfs_server *server, struct inode *d_ino,
-                    struct nfs4_opendata *opendata)
+                    struct nfs4_opendata *data)
 {
-    int code = 0;
+    struct pnfs_layout_hdr *lo;
+    struct pnfs_layout_segment *lseg;
+    struct cohort_replication_layout_rmds *rmds;
+    struct inode *s_ino = server->s_ino;
+    int code2, code = -EINVAL;
 
     dprintk("--> %s\n", __func__);
 
+    /* Do nothing if the operation cannot (potentially) create a
+     * new file object. */
+    if (! (data->o_arg.open_flags & O_CREAT))
+        goto out;
+
+    code = cohort_rpl_op_preamble(__func__, d_ino, &server, &s_ino,
+                                  &lo, &lseg);
+    if (code)
+        goto out_postamble;
+
+    dprintk("%s found replication layout (%p, %p)\n", __func__,
+            lo, lseg);
+
+    /* Ok, for now, we know 1 is the the fixed ds offset of the replica MDS
+     * (0 is offset of the primary MDS). */
+    rmds = cohort_rpl_prepare_ds(lseg, 1);
+    if (!rmds) {
+        dprintk("%s couldnt instantiate replica rmds\n", __func__);
+        code = NFS4ERR_STALE;
+        goto out_postamble;
+    }
+    dprintk("%s rmds[1] %p ds_session %p\n", __func__, rmds,
+        rmds->ds_client->cl_session);
+
+    /* XXX MUTATE DATA */
+    data->ch_flags = COHORT_OPEN_FLAG_REPLICA;
+    data->o_arg.seq_args.sa_session = rmds->ds_client->cl_session;
+    data->ch_client = rmds->ds_client->cl_rpcclient;
+    code = _nfs4_proc_open(data);
+
+#if 0 /* XXX Disabled pending working server! */
+    if (!code)
+        pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
+#endif
+
+out_postamble:
+    code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
+                                    lo, lseg);
+out:
     return (code);
 }
 

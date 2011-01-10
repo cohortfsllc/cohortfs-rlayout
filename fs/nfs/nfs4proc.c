@@ -67,7 +67,6 @@
 
 #define NFS4_MAX_LOOP_ON_RECOVER (10)
 
-static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *, struct nfs4_state *, struct nfs_client *);
@@ -1488,10 +1487,18 @@ static const struct rpc_call_ops nfs4_recover_open_ops = {
 static int nfs4_run_open_task(struct nfs4_opendata *data, int isrecover)
 {
 	struct inode *dir = data->dir->d_inode;
-	struct nfs_server *server = NFS_SERVER(dir);
+	struct nfs_server *server = NFS_SERVER(dir); /* XXX Cohort CAREFUL */
 	struct nfs_openargs *o_arg = &data->o_arg;
 	struct nfs_openres *o_res = &data->o_res;
 	struct rpc_task *task;
+#if defined(CONFIG_PNFS_COHORT)
+        struct rpc_clnt *rpc_client =
+                (data->ch_flags & COHORT_OPEN_FLAG_REPLICA) ?
+                data->ch_client : server->client;
+#else
+        struct rpc_clnt *rpc_client = server->client;
+#endif
+
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN],
 		.rpc_argp = o_arg,
@@ -1499,7 +1506,7 @@ static int nfs4_run_open_task(struct nfs4_opendata *data, int isrecover)
 		.rpc_cred = data->owner->so_cred,
 	};
 	struct rpc_task_setup task_setup_data = {
-		.rpc_client = server->client,
+		.rpc_client = rpc_client,
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_open_ops,
 		.callback_data = data,
@@ -1552,7 +1559,7 @@ static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
 /*
  * Note: On error, nfs4_proc_open will free the struct nfs4_opendata
  */
-static int _nfs4_proc_open(struct nfs4_opendata *data)
+int _nfs4_proc_open(struct nfs4_opendata *data)
 {
 	struct inode *dir = data->dir->d_inode;
 	struct nfs_server *server = NFS_SERVER(dir);
@@ -1563,6 +1570,16 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	status = nfs4_run_open_task(data, 0);
 	if (status != 0 || !data->rpc_done)
 		return status;
+
+#if defined(CONFIG_PNFS_COHORT)
+        /* XXX If this open is on a replica rmds, do not update
+         * inode state, etc, as these operations have already
+         * succeeded. */
+        if (data->ch_flags & COHORT_OPEN_FLAG_REPLICA) {
+                dprintk("%s replica data %p\n",  __func__, data);
+                goto replica;
+        }
+#endif
 
 	if (o_arg->open_flags & O_CREAT) {
 		update_changeattr(dir, &o_res->cinfo);
@@ -1578,8 +1595,13 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	}
 	if (!(o_res->f_attr->valid & NFS_ATTR_FATTR))
 		_nfs4_proc_getattr(server, &o_res->fh, o_res->f_attr);
+
+#if defined(CONFIG_PNFS_COHORT)
+replica:
+#endif
 	return 0;
 }
+EXPORT_SYMBOL_GPL(_nfs4_proc_open);
 
 int nfs4_recover_expired_lease(struct nfs_client *clp)
 {
@@ -1706,16 +1728,8 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 	if (status != 0)
 		goto err_opendata_put;
 
-#if defined(CONFIG_PNFS_COHORT)
-	dprintk("%s 1 %p\n", __func__, dir);
-        if (cohort_replicas_p(dir)) {
-                int ch_status;
-                dprintk("%s cohort_replicas_p t\n", __func__);
-                ch_status = server->pnfs_meta_ld->open(server, dir, opendata);
-                dprintk("%s cohort_rpl_open ch_status %d\n", __func__,
-                        ch_status);
-        }
-#endif /* COHORT */
+        /* XXX Cohort open WAS here, but moved since original state
+         * would be lost. */
 
 	state = nfs4_opendata_to_nfs4_state(opendata);
 	status = PTR_ERR(state);
@@ -1737,6 +1751,16 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 	}
 	
 	dprintk("%s 2 %p\n", __func__, dir);
+#if defined(CONFIG_PNFS_COHORT)
+	dprintk("%s 1 %p\n", __func__, dir);
+        if (cohort_replicas_p(dir)) {
+                int ch_status;
+                dprintk("%s cohort_replicas_p t\n", __func__);
+                ch_status = server->pnfs_meta_ld->open(server, dir, opendata);
+                dprintk("%s cohort_rpl_open ch_status %d\n", __func__,
+                        ch_status);
+        }
+#endif /* COHORT */
 	
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);

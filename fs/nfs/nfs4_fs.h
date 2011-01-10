@@ -365,6 +365,8 @@ struct nfs4_createdata {
 	struct nfs_fattr fh_fattr;
 };
 
+#define COHORT_OPEN_FLAG_REPLICA   (1U << 0)
+
 struct nfs4_opendata {
 	struct kref kref;
 	struct nfs_openargs o_arg;
@@ -382,7 +384,14 @@ struct nfs4_opendata {
 	unsigned int rpc_done : 1;
 	int rpc_status;
 	int cancelled;
+#if defined(CONFIG_PNFS_COHORT)
+	u32 ch_flags;
+	struct rpc_clnt *ch_client;
+#endif
 };
+
+/* XXX Cohort */
+extern int _nfs4_proc_open(struct nfs4_opendata *data);
 
 #else
 

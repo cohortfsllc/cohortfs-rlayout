@@ -392,7 +392,7 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     code = nfs41_call_sync(server, rmds->ds_client, &data->msg,
                            &data->arg.seq_args, &data->res.seq_res,
                            1 /* cache reply */);
-#if 0 /* XXX Disabled pending working server! */
+#if 1 /* XXX Disabled pending working server! */
     if (!code)
         pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
 #endif
@@ -439,7 +439,7 @@ cohort_rpl_remove(struct nfs_server *server, struct inode *d_ino,
     code = nfs41_call_sync(server, rmds->ds_client, msg, &arg->seq_args,
                            &res->seq_res,
                            1 /* cache reply */);
-#if 0 /* XXX Disabled pending working server! */
+#if 1 /* XXX Disabled pending working server! */
     if (!code)
         pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
 #endif
@@ -496,7 +496,7 @@ int cohort_rpl_open(struct nfs_server *server, struct inode *d_ino,
     data->ch_client = rmds->ds_client->cl_rpcclient;
     code = _nfs4_proc_open(data);
 
-#if 0 /* XXX Disabled pending working server! */
+#if 1 /* XXX Disabled pending working server! */
     if (!code)
         pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
 #endif

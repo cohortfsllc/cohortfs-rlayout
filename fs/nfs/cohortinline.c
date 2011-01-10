@@ -208,7 +208,7 @@ cohort_rpl_return_layouts(struct super_block *sb)
      * b. the Linux client retries the operations...forever ??
      * So, we call our own interim cleanup code for now.
      */
-#if 0
+#if 1
     code = pnfs_return_layout(s_ino, &range, true);
 #else
 #if 0 /* and we cant call LAYOUTRETURN either */

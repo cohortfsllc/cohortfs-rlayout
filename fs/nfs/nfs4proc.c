@@ -5738,7 +5738,7 @@ nfs4_layoutreturn_prepare(struct rpc_task *task, void *calldata)
 	dprintk("--> %s\n", __func__);
 	if (lrp->args.return_type == RETURN_FILE) {
 		struct nfs_inode *nfsi = NFS_I(lrp->args.inode);
-#if 0 /* XXX disabled pending working server Finish */
+#if 1 /* XXX disabled pending working server Finish */
 		if (pnfs_return_layout_barrier(nfsi, &lrp->args.range)) {
 			dprintk("%s: waiting on barrier %p (lo_rpcwaitq)\n",
                                 __func__, nfsi);

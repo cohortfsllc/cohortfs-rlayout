@@ -486,7 +486,11 @@ int cohort_rpl_open(struct nfs_server *server, struct inode *d_ino,
     dprintk("%s rmds[1] %p ds_session %p\n", __func__, rmds,
         rmds->ds_client->cl_session);
 
-    /* XXX MUTATE DATA */
+    /* XXX Update existing opendata for execution on the replicas.  This
+     * is a temporary mechanism, since OPENs replicated in this way
+     * would need to be closed.  Rather than hook ordinary close, I 
+     * propose to create a special open compound which contains a close
+     * of the just-opened fh (later).  */
     data->ch_flags = COHORT_OPEN_FLAG_REPLICA;
     data->o_arg.seq_args.sa_session = rmds->ds_client->cl_session;
     data->ch_client = rmds->ds_client->cl_rpcclient;

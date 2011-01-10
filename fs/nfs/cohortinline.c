@@ -201,13 +201,19 @@ cohort_rpl_return_layouts(struct super_block *sb)
     range.offset = 0ULL;
     range.length = NFS4_MAX_UINT64;
 
-    code = pnfs_return_layout(s_ino, &range, true);
-
+    /* XXX Finish!  The following code has been validated to set up and
+     * make potentially valid LAYOUTCOMMIT and LAYOUTRETURN calls.  The
+     * code can't be called yet, because:
+     * a. Ganesha can't decode either call
+     * b. the Linux client retries the operations...forever ??
+     * So, we call our own interim cleanup code for now.
+     */
 #if 0
-    /* XXX Should we try to commit anythig outstanding?  Should
-     * our caller have done so? */
+    code = pnfs_return_layout(s_ino, &range, true);
+#else
+#if 0 /* and we cant call LAYOUTRETURN either */
     _pnfs_return_layout(rdata->inode, &range, true);
-
+#endif
     /* Find and ref layout for d_ino, if possible */
     spin_lock(&s_ino->i_lock);
     lo = pnfs_find_inode_layout(s_ino);
@@ -224,7 +230,6 @@ cohort_rpl_return_layouts(struct super_block *sb)
         /* put hdr */
         put_layout_hdr_locked(lo);
     }
-
     spin_unlock(&s_ino->i_lock);
 #endif
 

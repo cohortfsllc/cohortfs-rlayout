@@ -5714,13 +5714,14 @@ nfs4_layoutreturn_prepare(struct rpc_task *task, void *calldata)
 	dprintk("--> %s\n", __func__);
 	if (lrp->args.return_type == RETURN_FILE) {
 		struct nfs_inode *nfsi = NFS_I(lrp->args.inode);
-
+#if 0 /* XXX disabled pending working server Finish */
 		if (pnfs_return_layout_barrier(nfsi, &lrp->args.range)) {
 			dprintk("%s: waiting on barrier %p (lo_rpcwaitq)\n",
                                 __func__, nfsi);
 			rpc_sleep_on(&nfsi->lo_rpcwaitq, task, NULL);
 			return;
 		}
+#endif
 	}
 	if (nfs41_setup_sequence(lrp->clp->cl_session, &lrp->args.seq_args,
 				&lrp->res.seq_res, 0, task))

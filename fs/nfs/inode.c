@@ -1422,7 +1422,11 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 void nfs4_evict_inode(struct inode *inode)
 {
-	pnfs_return_layout(inode, NULL, true);
+    /* XXX Cohort.  It seems unlikely we want to return metadata
+     * layouts here, at least for now (see super.c).
+     */
+	if (! S_ISDIR(inode->i_mode))
+		pnfs_return_layout(inode, NULL, true);
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
 	pnfs_destroy_layout(NFS_I(inode));

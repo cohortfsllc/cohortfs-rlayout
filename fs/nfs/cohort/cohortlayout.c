@@ -392,9 +392,10 @@ cohort_rpl_create(struct nfs_server *server, struct inode *d_ino,
     code = nfs41_call_sync(server, rmds->ds_client, &data->msg,
                            &data->arg.seq_args, &data->res.seq_res,
                            1 /* cache reply */);
-
+#if 0 /* XXX Disabled pending working server! */
     if (!code)
         pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
+#endif
 
 out_postamble:
     code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,
@@ -438,9 +439,10 @@ cohort_rpl_remove(struct nfs_server *server, struct inode *d_ino,
     code = nfs41_call_sync(server, rmds->ds_client, msg, &arg->seq_args,
                            &res->seq_res,
                            1 /* cache reply */);
-
+#if 0 /* XXX Disabled pending working server! */
     if (!code)
         pnfs_need_layoutcommit(NFS_I(s_ino), NULL);
+#endif
 
 out_postamble:
     code2 = cohort_rpl_op_postamble(__func__, d_ino, server, s_ino,

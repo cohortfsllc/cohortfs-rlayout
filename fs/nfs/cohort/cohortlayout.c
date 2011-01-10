@@ -547,6 +547,9 @@ cohort_rpl_encode_layoutcommit(struct pnfs_layout_hdr *lo,
                                const struct nfs4_layoutcommit_args *args)
 {
     dprintk("--> %s\n", __func__);
+
+    /* XXX Finish! */
+
     return;
 }
 
